@@ -1,10 +1,25 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { getUser } from '../api';
 
 const { width } = Dimensions.get('window');
 
 export default function RoleScreen({ navigation }: any) {
+    const handleTeacher = async () => {
+        const user = await getUser();
+        if (user) {
+            navigation.navigate('Home', {
+                userName: user.name,
+                userEmail: user.email,
+                userCollege: user.college,
+                userDepartment: user.department,
+            });
+        } else {
+            navigation.navigate('Login');
+        }
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
@@ -17,7 +32,7 @@ export default function RoleScreen({ navigation }: any) {
                 <View style={styles.roleContainer}>
                     <TouchableOpacity
                         style={styles.roleCard}
-                        onPress={() => navigation.navigate('Login')}
+                        onPress={handleTeacher}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.icon}>👨‍🏫</Text>

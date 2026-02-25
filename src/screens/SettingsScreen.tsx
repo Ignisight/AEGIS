@@ -10,6 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { getServerUrl, setServerUrl, pingServer, saveUser } from '../api';
+import { APP_SECRET_HEADER } from '../config';
 
 interface SettingsScreenProps {
     navigation: any;
@@ -43,7 +44,7 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
         try {
             const res = await fetch(`${getServerUrl()}/api/update-profile`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                 body: JSON.stringify({
                     email: userEmail,
                     name: name.trim(),
@@ -118,7 +119,7 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
         try {
             const res = await fetch(`${getServerUrl()}/api/change-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                 body: JSON.stringify({
                     email: userEmail,
                     currentPassword,

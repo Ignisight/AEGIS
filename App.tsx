@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { getUser } from './src/api';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -14,8 +13,8 @@ import ResponsesScreen from './src/screens/ResponsesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RoleScreen from './src/screens/RoleScreen';
 import StudentLoginScreen from './src/screens/StudentLoginScreen';
+import StudentDashboardScreen from './src/screens/StudentDashboardScreen';
 import StudentScannerScreen from './src/screens/StudentScannerScreen';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,50 +31,11 @@ const DarkTheme = {
 };
 
 export default function App() {
-    const [isLoading, setIsLoading] = useState(true);
-    const [initialRoute, setInitialRoute] = useState('RoleSelection');
-    const [initialParams, setInitialParams] = useState<any>(undefined);
-
-    useEffect(() => {
-        const checkUser = async () => {
-            try {
-                // Check Teacher First
-                const user = await getUser();
-                if (user) {
-                    setInitialRoute('Home');
-                    setInitialParams({
-                        userName: user.name,
-                        userEmail: user.email,
-                        userCollege: user.college,
-                        userDepartment: user.department,
-                    });
-                    return;
-                }
-
-                // Check Student Next
-                const studentUser = await AsyncStorage.getItem('student_user');
-                if (studentUser) {
-                    setInitialRoute('StudentScanner');
-                    return;
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        checkUser();
-    }, []);
-
-    if (isLoading) {
-        return null;
-    }
-
     return (
         <NavigationContainer theme={DarkTheme}>
             <StatusBar style="light" />
             <Stack.Navigator
-                initialRouteName={initialRoute}
+                initialRouteName="RoleSelection"
                 screenOptions={{
                     headerShown: false,
                     animation: 'slide_from_right',
@@ -84,12 +44,13 @@ export default function App() {
             >
                 <Stack.Screen name="RoleSelection" component={RoleScreen} />
                 <Stack.Screen name="StudentLogin" component={StudentLoginScreen} />
+                <Stack.Screen name="StudentDashboard" component={StudentDashboardScreen} />
                 <Stack.Screen name="StudentScanner" component={StudentScannerScreen} />
 
                 <Stack.Screen name="Login" component={LoginScreen} />
                 <Stack.Screen name="Register" component={RegisterScreen} />
                 <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                <Stack.Screen name="Home" component={HomeScreen} initialParams={initialParams} />
+                <Stack.Screen name="Home" component={HomeScreen} />
                 <Stack.Screen name="History" component={HistoryScreen} />
                 <Stack.Screen name="Session" component={SessionScreen} />
                 <Stack.Screen name="Responses" component={ResponsesScreen} />

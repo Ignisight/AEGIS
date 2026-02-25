@@ -1,4 +1,4 @@
-import { DEFAULT_SERVER_URL } from './config';
+import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from './config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let SERVER_URL = DEFAULT_SERVER_URL;
@@ -20,7 +20,7 @@ export const register = async (name: string, email: string, password: string, co
     try {
         const response = await fetch(`${SERVER_URL}/api/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
             body: JSON.stringify({ name, email, password, college, department }),
         });
         return await response.json();
@@ -35,7 +35,7 @@ export const login = async (email: string, password: string) => {
     try {
         const response = await fetch(`${SERVER_URL}/api/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
             body: JSON.stringify({ email, password }),
         });
         return await response.json();
@@ -48,7 +48,7 @@ export const login = async (email: string, password: string) => {
 export async function forgotPassword(email: string) {
     const res = await fetch(`${SERVER_URL}/api/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
         body: JSON.stringify({ email }),
     });
     return await res.json();
@@ -57,7 +57,7 @@ export async function forgotPassword(email: string) {
 export async function resetPassword(email: string, otp: string, newPassword: string) {
     const res = await fetch(`${SERVER_URL}/api/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
         body: JSON.stringify({ email, otp, newPassword }),
     });
     return await res.json();
@@ -68,7 +68,7 @@ export const changePassword = async (email: string, currentPassword: string, new
     try {
         const response = await fetch(`${SERVER_URL}/api/change-password`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
             body: JSON.stringify({ email, currentPassword, newPassword }),
         });
         return await response.json();
@@ -84,7 +84,7 @@ export const changePassword = async (email: string, currentPassword: string, new
 export async function startSession(sessionName: string, lat?: number, lon?: number) {
     const res = await fetch(`${SERVER_URL}/api/start-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
         body: JSON.stringify({ sessionName, lat, lon }),
     });
     return await res.json();
@@ -96,7 +96,7 @@ export async function stopSession(sessionId?: number) {
 
     const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
     });
     return await res.json();
 }
@@ -106,7 +106,7 @@ export async function getResponses(sessionName?: string) {
     if (sessionName) {
         url += `?sessionName=${encodeURIComponent(sessionName)}`;
     }
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: APP_SECRET_HEADER });
     return await res.json();
 }
 
@@ -115,6 +115,7 @@ export async function pingServer(url: string): Promise<boolean> {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
         const res = await fetch(`${url.replace(/\/+$/, '')}/api/status`, {
+            headers: APP_SECRET_HEADER,
             signal: controller.signal,
         });
         clearTimeout(timeout);

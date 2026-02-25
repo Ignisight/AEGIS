@@ -136,6 +136,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                         Don't have an account? <Text style={styles.registerHighlight}>Create one</Text>
                     </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('RoleSelection')}
+                    style={{ marginTop: 20, paddingVertical: 12 }}
+                >
+                    <Text style={{ color: '#64748b', textAlign: 'center', fontWeight: '600', fontSize: 14 }}>← Back to Role Selection</Text>
+                </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );

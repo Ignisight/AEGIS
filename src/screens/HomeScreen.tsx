@@ -69,47 +69,26 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
 
         setLoading(true);
         try {
-            // 1. Get Location
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Location permission is required to start a specific-location session.');
-                setLoading(false);
-                return;
-            }
-
+            // 1. Try to get GPS with strict 5-second timeout
             let latitude, longitude;
-            let locationFetched = false;
 
-            // Try up to 3 times to get location (gives GPS time to wake up)
-            for (let i = 0; i < 3; i++) {
-                try {
-                    let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    // Race: GPS vs 5-second timeout
+                    const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 5000));
+
+                    const location: any = await Promise.race([locationPromise, timeoutPromise]);
                     latitude = location.coords.latitude;
                     longitude = location.coords.longitude;
-                    locationFetched = true;
-                    break; // Success, exit loop
-                } catch (err) {
-                    // Wait 2 seconds before retrying
-                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
+            } catch (locErr) {
+                // GPS failed or timed out — continue without it
+                console.log('GPS skipped:', locErr);
             }
 
-            // If still failed, try last known
-            if (!locationFetched) {
-                try {
-                    let location = await Location.getLastKnownPositionAsync({});
-                    if (!location) throw new Error('No location');
-                    latitude = location.coords.latitude;
-                    longitude = location.coords.longitude;
-                    locationFetched = true;
-                } catch (locErr) {
-                    Alert.alert('Location Error', 'Still cannot fetch location. Please ensure GPS is ON and you have a clear view of the sky, then try again.');
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            // 2. Start Session with Coords
+            // 2. Start Session (with or without coords)
             try {
                 const result = await startSession(trimmed, latitude, longitude);
                 if (result.error) { Alert.alert('Error', result.error); return; }
@@ -117,7 +96,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                     navigation.navigate('Session', {
                         sessionName: trimmed,
                         formUrl: result.formUrl,
-                        sessionId: result.sessionId, // Timer absolute time
+                        sessionId: result.sessionId,
                     });
                     setSessionName('');
                 }
@@ -248,6 +227,15 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                                 <View style={styles.menuItemContent}>
                                     <Text style={styles.menuItemTitle}>Settings</Text>
                                     <Text style={styles.menuItemDesc}>Profile, Server, Password</Text>
+                                </View>
+                                <Text style={styles.menuItemArrow}>›</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => { closeDrawer(); setTimeout(() => navigation.navigate('RoleSelection'), 300); }}>
+                                <Text style={styles.menuItemIcon}>🔄</Text>
+                                <View style={styles.menuItemContent}>
+                                    <Text style={styles.menuItemTitle}>Switch to Student</Text>
+                                    <Text style={styles.menuItemDesc}>Scan QR as a student</Text>
                                 </View>
                                 <Text style={styles.menuItemArrow}>›</Text>
                             </TouchableOpacity>

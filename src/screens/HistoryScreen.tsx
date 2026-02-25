@@ -11,6 +11,7 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { getServerUrl } from '../api';
+import { APP_SECRET_HEADER } from '../config';
 
 interface HistoryScreenProps {
     navigation: any;
@@ -38,7 +39,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         setLoading(true);
         try {
             const serverUrl = getServerUrl();
-            const res = await fetch(`${serverUrl}/api/history`);
+            const res = await fetch(`${serverUrl}/api/history`, { headers: APP_SECRET_HEADER });
             const data = await res.json();
             if (data.success) {
                 setSessions(data.sessions);
@@ -107,7 +108,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { method: 'POST' });
+                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { method: 'POST', headers: APP_SECRET_HEADER });
                             await fetchHistory();
                         } catch {
                             Alert.alert('Error', 'Failed to stop session.');
@@ -154,7 +155,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                             const serverUrl = getServerUrl();
                             await fetch(`${serverUrl}/api/sessions/delete-many`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                                 body: JSON.stringify({ ids: Array.from(selected) }),
                             });
                             exitSelectMode();
@@ -181,7 +182,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/clear-all`, { method: 'POST' });
+                            await fetch(`${serverUrl}/api/sessions/clear-all`, { method: 'POST', headers: APP_SECRET_HEADER });
                             exitSelectMode();
                             await fetchHistory();
                         } catch (err) {
@@ -385,12 +386,6 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         </>
                     ) : (
                         <>
-                            <TouchableOpacity
-                                style={[styles.bottomBtn, styles.exportBtn]}
-                                onPress={() => { setSelectMode(true); setSelected(new Set(sessions.map(s => s.id))); }}
-                            >
-                                <Text style={styles.bottomBtnText}>☑ Select</Text>
-                            </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.bottomBtn, styles.exportBtn]}
                                 onPress={handleExportSelected}
