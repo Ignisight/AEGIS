@@ -20,11 +20,6 @@ export default function StudentDashboardScreen({ navigation }: any) {
             const saved = await AsyncStorage.getItem('student_user');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                if (!parsed.name) {
-                    await AsyncStorage.removeItem('student_user');
-                    navigation.replace('StudentLogin');
-                    return;
-                }
                 setStudent(parsed);
             } else {
                 navigation.replace('StudentLogin');
@@ -133,7 +128,7 @@ export default function StudentDashboardScreen({ navigation }: any) {
                 {/* Welcome */}
                 <View style={styles.welcomeSection}>
                     <Text style={styles.welcomeText}>Welcome back,</Text>
-                    <Text style={styles.welcomeName}>{student.name} 👋</Text>
+                    <Text style={styles.welcomeName}>{info.regNo} 👋</Text>
                 </View>
 
                 {/* Scan QR Button */}
@@ -171,9 +166,9 @@ export default function StudentDashboardScreen({ navigation }: any) {
                 {/* Profile Header */}
                 <View style={styles.drawerProfile}>
                     <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{student.name.charAt(0).toUpperCase()}</Text>
+                        <Text style={styles.avatarText}>{info.regNo ? info.regNo.charAt(0).toUpperCase() : 'S'}</Text>
                     </View>
-                    <Text style={styles.drawerName}>{student.name}</Text>
+                    <Text style={styles.drawerName}>{info.regNo}</Text>
                     <Text style={styles.drawerEmail}>{student.email}</Text>
                 </View>
 

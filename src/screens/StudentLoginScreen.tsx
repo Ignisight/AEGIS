@@ -6,7 +6,6 @@ import * as Crypto from 'expo-crypto';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
 
 export default function StudentLoginScreen({ navigation }: any) {
-    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(true);
@@ -26,10 +25,7 @@ export default function StudentLoginScreen({ navigation }: any) {
     };
 
     const handleLogin = async () => {
-        if (!name.trim()) {
-            Alert.alert('Name Required', 'Please enter your full name.');
-            return;
-        }
+
         if (!email.trim() || !email.includes('@')) {
             Alert.alert('Invalid Email', 'Please enter your college email address.');
             return;
@@ -52,7 +48,6 @@ export default function StudentLoginScreen({ navigation }: any) {
             const data = await response.json();
             if (data.success) {
                 await AsyncStorage.setItem('student_user', JSON.stringify({
-                    name: name.trim(),
                     email: email.toLowerCase().trim(),
                     deviceId
                 }));
@@ -82,18 +77,6 @@ export default function StudentLoginScreen({ navigation }: any) {
                     <View style={styles.warningBox}>
                         <Text style={styles.warningIcon}>🔒</Text>
                         <Text style={styles.warningText}>This phone will be permanently bound to your email. One phone per student — no sharing allowed.</Text>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Full Name</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g. Rahul Kumar"
-                            placeholderTextColor="#475569"
-                            value={name}
-                            onChangeText={setName}
-                            autoCapitalize="words"
-                        />
                     </View>
 
                     <View style={styles.inputGroup}>
