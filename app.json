@@ -2,7 +2,7 @@
   "expo": {
     "name": "Attendance System",
     "slug": "attendance-system",
-    "version": "1.5.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +23,15 @@
       }
     },
     "plugins": [
-      "expo-camera"
+      "expo-camera",
+      "expo-location",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Attendance System to access your photos to scan QR codes from gallery.",
+          "cameraPermission": "Allow Attendance System to use camera to take pictures of QR codes."
+        }
+      ]
     ]
   }
 }
