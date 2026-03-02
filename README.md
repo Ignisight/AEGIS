@@ -1,30 +1,44 @@
-# QR Attendance System - Full App (v2.1.0)
+# QR Attendance System — Mobile App (v2.2.0)
 
-This is the unified React Native (Expo) mobile application for the NIT Jamshedpur Attendance System, featuring a robust multi-role architecture for both Teachers and Students.
+A secure React Native (Expo) mobile application for NIT Jamshedpur's attendance system. Multi-role architecture for Teachers and Students in a single APK.
 
 ### 📥 Download the App
 
-Download the latest compiled **v2.1.0 APK directly onto your Android device** using the official Expo Cloud Build link:
-👉 [Download Android APK (v2.1.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/97c32440-2dff-49b5-890e-e51063044acb)
+Download the latest **v2.2.0 APK** for Android:
+👉 [Download Android APK (v2.2.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/9fdb1955-5354-49db-82e9-357b0e3b64b0)
 
 ---
 
-### 🔥 v2.1.0 Major Features & Security Upgrades
+### 🔐 v2.2.0 — Security & Persistence Upgrade
 
-#### 🛡 Security Lockdowns
-- **Strict Device Hardware Binding:** Enforces `1 Phone = 1 Email` logic. Once a student registers an email on a physical phone hardware ID, that phone can *never* be used by another student. This completely blocks attendance sharing/proxy attendance from a single device.
-- **Official App Validation (`x-app-secret`):** The backend API is entirely locked down. Generic POST requests (from Postman, curl, Python scripts) without the compiled app secret key (`x-app-secret`) will be instantly rejected as `403 Access Denied`.
-- **Location Timeout Grace:** Instead of breaking the app when a student is indoors with no GPS signal, the Teacher map loader strictly times out after 5 seconds, forcefully bypassing Android high-accuracy hangups to start the session.
+#### 🍃 MongoDB Atlas (Persistent Cloud Storage)
+- All data now persists permanently in MongoDB Atlas — **zero data loss on server restarts or redeployments**.
+- Teacher accounts, student device bindings, sessions, and attendance records are all cloud-stored.
+- Sessions retained 6 months, attendance records retained 4 years (auto-cleanup via TTL indexes).
 
-#### 👥 Multi-Role unified Experience
-- **Teacher View:** Secure login for Professors, live QR Code sessions, GPS Geofencing, historical CSV exports, and 10-minute auto-timeout sessions. 
-- **Student View:** Replaced web-view based submissions with a fully native Student View inside the exact same APK. They login via their `@nitjsr.ac.in` email and their device is permanently crypto-hashed.
-- **Smart Email Parser:** Automatically pulls the Batch Year, Program (UG/PG), Branch (CS/CM/ECE), and Registration number directly from the `nitjsr.ac.in` student email structure and beautifully renders them on a native drawer dashboard.
+#### 🔒 OTP Password Reset (Hardened)
+- OTP is **bcrypt-hashed** before storage — never saved as plaintext.
+- OTP generated using **`crypto.randomInt()`** (cryptographically secure, not `Math.random`).
+- **Rate limiting:** 5 failed OTP attempts → 15-minute lockout.
+- **Cooldown:** 60 seconds between OTP requests (prevents email spam).
+- OTP **never exposed** in API responses, console logs, or client UI.
+- Emails delivered via **Brevo HTTP API** (300 emails/day free).
 
-#### 📷 QR Scanner Engineering 
-- **Dynamic Live Scanning:** Super-fast live camera QR scanning within a localized Android View component.
-- **Offline Protocol / Gallery Upload:** Full `multer` + `Jimp` V1 API integration allowing off-network students to upload photos of the teacher's QR code from their camera roll and submit safely to the Render cloud backend.
+#### 🛡 Secret Key Rotation
+- `APP_SECRET_KEY` rotated and removed from source code entirely.
+- Key injected at build time via EAS Secrets + `.env` (never in GitHub).
+- Old exposed key permanently rejected (403).
 
-### Requirements:
+#### 🛡 Device Security (from v2.1.0)
+- **1 Phone = 1 Email** — hardware device binding prevents proxy attendance.
+- **`x-app-secret` header** — blocks Postman/curl/script access to the API.
+- Device IDs SHA-256 hashed via `expo-crypto`.
+
+#### 👥 Multi-Role Unified Experience
+- **Teacher:** Login, live QR sessions, GPS geofencing, CSV exports, 10-min auto-timeout.
+- **Student:** Native QR scanner, gallery upload fallback, device-bound login.
+- **Smart Email Parser:** Extracts batch year, program, branch, and roll number from `@nitjsr.ac.in` emails.
+
+### Requirements
 - Android 9.0+
-- The Node.js Backend Server must be active (This compiled build targets the deployed Render node server in `config.ts`).
+- Backend server must be active ([attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com))
