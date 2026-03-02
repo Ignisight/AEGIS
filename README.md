@@ -5,7 +5,7 @@ A secure React Native (Expo) mobile application for NIT Jamshedpur's attendance 
 ### 📥 Download the App
 
 Download the latest **v2.2.0 APK** for Android:
-👉 [Download Android APK (v2.2.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/9fdb1955-5354-49db-82e9-357b0e3b64b0)
+👉 [Download Android APK (v2.2.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/0df16407-f7c2-4868-9ba9-b133e152bf0b)
 
 ---
 
