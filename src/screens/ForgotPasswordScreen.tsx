@@ -24,7 +24,6 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [generatedOtp, setGeneratedOtp] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -38,12 +37,8 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
         try {
             const result = await forgotPassword(email.trim());
             if (result.success) {
-                // Store OTP if returned (dev mode)
-                if (result.otp) {
-                    setGeneratedOtp(result.otp);
-                }
                 setStep('otp');
-                Alert.alert('OTP Sent ✅', 'Enter the 6-digit code to reset your password.');
+                Alert.alert('OTP Sent ✅', 'Check your email for the 6-digit code.');
             } else {
                 Alert.alert('Error', result.error || 'Could not send OTP');
             }
@@ -143,13 +138,6 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
                     </>
                 ) : (
                     <>
-                        {/* Show OTP hint in dev mode */}
-                        {generatedOtp ? (
-                            <View style={styles.otpHint}>
-                                <Text style={styles.otpHintLabel}>Your OTP Code:</Text>
-                                <Text style={styles.otpHintCode}>{generatedOtp}</Text>
-                            </View>
-                        ) : null}
 
                         <View style={styles.fieldGroup}>
                             <Text style={styles.label}>OTP Code</Text>
