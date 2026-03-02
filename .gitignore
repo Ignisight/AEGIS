@@ -8,3 +8,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 server/
+
+# Secrets — NEVER push to GitHub
+.env
+.env.local
+.env.production
