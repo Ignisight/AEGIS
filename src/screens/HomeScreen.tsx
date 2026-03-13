@@ -23,7 +23,7 @@ interface HomeScreenProps {
 }
 
 export default function HomeScreen({ navigation, route }: HomeScreenProps) {
-    const { userName, userEmail, userCollege, userDepartment } = route.params || {};
+    const { userName, userEmail, userCollege, userDepartment, userAllowedDomain } = route.params || {};
     const [sessionName, setSessionName] = useState('');
     const [loading, setLoading] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,7 +59,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     const openSettings = () => {
         closeDrawer();
         setTimeout(() => navigation.navigate('Settings', {
-            userName, userEmail, userCollege, userDepartment,
+            userName, userEmail, userCollege, userDepartment, userAllowedDomain,
         }), 300);
     };
 
@@ -90,7 +90,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
 
             // 2. Start Session (with or without coords)
             try {
-                const result = await startSession(trimmed, latitude, longitude);
+                const result = await startSession(trimmed, latitude, longitude, userEmail);
                 if (result.error) { Alert.alert('Error', result.error); return; }
                 if (result.success) {
                     navigation.navigate('Session', {

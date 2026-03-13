@@ -14,6 +14,7 @@ export default function RoleScreen({ navigation }: any) {
                 userEmail: user.email,
                 userCollege: user.college,
                 userDepartment: user.department,
+                userAllowedDomain: user.allowedDomain || '',
             });
         } else {
             navigation.navigate('Login');

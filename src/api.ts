@@ -81,11 +81,11 @@ export const changePassword = async (email: string, currentPassword: string, new
 // ATTENDANCE
 // ==========================================
 
-export async function startSession(sessionName: string, lat?: number, lon?: number) {
+export async function startSession(sessionName: string, lat?: number, lon?: number, teacherEmail?: string) {
     const res = await fetch(`${SERVER_URL}/api/start-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-        body: JSON.stringify({ sessionName, lat, lon }),
+        body: JSON.stringify({ sessionName, lat, lon, teacherEmail }),
     });
     return await res.json();
 }

@@ -38,6 +38,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                     userEmail: result.user.email,
                     userCollege: result.user.college || '',
                     userDepartment: result.user.department || '',
+                    userAllowedDomain: result.user.allowedDomain || '',
                 });
             } else {
                 Alert.alert('Login Failed', result.error || 'Invalid credentials');

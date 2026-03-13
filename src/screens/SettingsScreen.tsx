@@ -18,10 +18,11 @@ interface SettingsScreenProps {
 }
 
 export default function SettingsScreen({ navigation, route }: SettingsScreenProps) {
-    const { userName, userEmail, userCollege, userDepartment } = route.params || {};
+    const { userName, userEmail, userCollege, userDepartment, userAllowedDomain } = route.params || {};
     const [name, setName] = useState(userName || '');
     const [college, setCollege] = useState(userCollege || '');
     const [department, setDepartment] = useState(userDepartment || '');
+    const [allowedDomain, setAllowedDomain] = useState(userAllowedDomain || '');
 
     const [serverUrl, setServerUrlState] = useState(getServerUrl());
     const [testingServer, setTestingServer] = useState(false);
@@ -50,6 +51,7 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
                     name: name.trim(),
                     college: college.trim(),
                     department: department.trim(),
+                    allowedDomain: allowedDomain.replace(/@/g, '').trim(),
                 }),
             });
             const data = await res.json();
@@ -64,6 +66,7 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
                     userEmail: data.user.email,
                     userCollege: data.user.college,
                     userDepartment: data.user.department,
+                    userAllowedDomain: data.user.allowedDomain || '',
                 });
             } else {
                 Alert.alert('Error', data.error || 'Failed to save profile.');
@@ -201,6 +204,21 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
                             placeholder="e.g. Computer Science"
                             placeholderTextColor="#475569"
                         />
+                    </View>
+
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Allowed Student Domain</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={allowedDomain}
+                            onChangeText={(text) => setAllowedDomain(text.replace(/@/g, ''))}
+                            placeholder="e.g. nitjsr.ac.in"
+                            placeholderTextColor="#475569"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="email-address"
+                        />
+                        <Text style={styles.hint}>Only students with this email domain can mark attendance. Leave blank to allow all domains.</Text>
                     </View>
 
                     <TouchableOpacity
