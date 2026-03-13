@@ -73,13 +73,13 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(downloadResult.uri, {
                     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    dialogTitle: 'Export Attendance',
+                    dialogTitle: 'Download Attendance',
                 });
             } else {
                 Alert.alert('Saved', `File saved to:\n${filePath}`);
             }
         } catch (err: any) {
-            Alert.alert('Export Error', err.message || 'Failed to export');
+            Alert.alert('Download Error', err.message || 'Failed to download');
         } finally {
             setExporting(false);
         }
@@ -169,7 +169,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
 
             <View style={styles.bottomActions}>
                 <TouchableOpacity style={styles.exportBtn} onPress={handleExport} disabled={exporting} activeOpacity={0.8}>
-                    <Text style={styles.exportBtnText}>{exporting ? '⏳ Exporting...' : '📥  Export Excel (.xlsx)'}</Text>
+                    <Text style={styles.exportBtnText}>{exporting ? '⏳ Downloading...' : '📥  Download Excel (.xlsx)'}</Text>
                 </TouchableOpacity>
             </View>
         </View>

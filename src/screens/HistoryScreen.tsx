@@ -210,13 +210,13 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(downloadResult.uri, {
                     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    dialogTitle: 'Export Attendance',
+                    dialogTitle: 'Download Attendance',
                 });
             } else {
                 Alert.alert('Saved', `File saved to:\n${filePath}`);
             }
         } catch (err: any) {
-            Alert.alert('Export Error', err.message || 'Failed to export');
+            Alert.alert('Download Error', err.message || 'Failed to download');
         } finally {
             setActionLoading(false);
         }
@@ -374,7 +374,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                                 onPress={handleExportSelected}
                                 disabled={selected.size === 0}
                             >
-                                <Text style={styles.bottomBtnText}>📥 Export ({selected.size})</Text>
+                                <Text style={styles.bottomBtnText}>📥 Download ({selected.size})</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.bottomBtn, styles.deleteBtn]}
@@ -390,7 +390,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                                 style={[styles.bottomBtn, styles.exportBtn]}
                                 onPress={handleExportSelected}
                             >
-                                <Text style={styles.bottomBtnText}>📥 Export All</Text>
+                                <Text style={styles.bottomBtnText}>📥 Download All</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.bottomBtn, styles.clearBtn]}
