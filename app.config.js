@@ -6,7 +6,7 @@ module.exports = ({ config }) => {
         ...config,
         name: "Attendance System",
         slug: "attendance-system",
-        version: "2.1.0",
+        version: "2.3.0",
         orientation: "portrait",
         icon: "./assets/icon.png",
         userInterfaceStyle: "dark",
