@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Device from 'expo-device';
 import * as Crypto from 'expo-crypto';
+import * as Application from 'expo-application';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
 
 export default function StudentLoginScreen({ navigation }: any) {
@@ -33,7 +33,16 @@ export default function StudentLoginScreen({ navigation }: any) {
 
         setLoading(true);
         try {
-            const hardwareId = Platform.OS + '-' + (Device.osInternalBuildId || Device.osBuildId || 'unknown');
+            let hardwareId = 'unknown-device';
+            if (Platform.OS === 'android') {
+                hardwareId = Application.getAndroidId() || 'android-fallback';
+            } else if (Platform.OS === 'ios') {
+                const iosId = await Application.getIosIdForVendorAsync();
+                hardwareId = iosId || 'ios-fallback';
+            } else {
+                hardwareId = Platform.OS;
+            }
+
             const deviceId = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256,
                 hardwareId
