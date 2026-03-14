@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getServerUrl } from '../api';
-import { APP_SECRET_HEADER } from '../config';
+import { APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 
 interface HistoryScreenProps {
     navigation: any;
@@ -203,7 +203,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         try {
             const serverUrl = getServerUrl();
             const ids = selected.size > 0 ? Array.from(selected).join(',') : sessions.map(s => s.id).join(',');
-            const url = `${serverUrl}/api/export-multi?ids=${ids}`;
+            const url = `${serverUrl}/api/export-multi?ids=${ids}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
             const fileName = `Attendance_${selected.size > 0 ? 'Selected' : 'All'}.xlsx`;
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
 

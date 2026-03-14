@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getResponses, getServerUrl } from '../api';
-import { REFRESH_INTERVAL_SEC } from '../config';
+import { REFRESH_INTERVAL_SEC, APP_SECRET_KEY } from '../config';
 
 interface ResponsesScreenProps {
     navigation: any;
@@ -66,7 +66,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         try {
             // Download Excel directly from server
             const serverUrl = getServerUrl();
-            const downloadUrl = `${serverUrl}/api/export?sessionName=${encodeURIComponent(sessionName)}`;
+            const downloadUrl = `${serverUrl}/api/export?sessionName=${encodeURIComponent(sessionName)}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
             const fileName = `Attendance_${sessionName.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
 

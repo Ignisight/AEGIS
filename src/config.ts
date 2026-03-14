@@ -8,7 +8,7 @@ export const DEFAULT_SERVER_URL = 'https://attendance-server-ddgs.onrender.com';
 
 // Security: App Secret Key injected at build time via app.config.js
 // NEVER hardcode the actual key here — it comes from environment variables
-const APP_SECRET_KEY = Constants.expoConfig?.extra?.APP_SECRET_KEY || '';
+export const APP_SECRET_KEY = Constants.expoConfig?.extra?.APP_SECRET_KEY || '';
 export const APP_SECRET_HEADER = { 'x-app-secret': APP_SECRET_KEY };
 
 // Session duration in milliseconds (10 minutes)
