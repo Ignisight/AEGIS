@@ -7,6 +7,7 @@ import {
     FlatList,
     ActivityIndicator,
     Alert,
+    Platform,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -70,13 +71,29 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
 
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath);
 
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(downloadResult.uri, {
-                    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    dialogTitle: 'Download Attendance',
-                });
+            if (Platform.OS === 'android') {
+                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (permissions.granted) {
+                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+                    const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                        permissions.directoryUri,
+                        fileName,
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    );
+                    await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                    Alert.alert('Success', `File downloaded successfully!`);
+                } else {
+                    Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
+                }
             } else {
-                Alert.alert('Saved', `File saved to:\n${filePath}`);
+                if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(downloadResult.uri, {
+                        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        dialogTitle: 'Download Attendance',
+                    });
+                } else {
+                    Alert.alert('Saved', `File saved to:\n${filePath}`);
+                }
             }
         } catch (err: any) {
             Alert.alert('Download Error', err.message || 'Failed to download');
