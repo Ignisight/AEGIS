@@ -22,6 +22,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     const [email, setEmail] = useState('');
     const [college, setCollege] = useState('NIT Jamshedpur');
     const [department, setDepartment] = useState('');
+    const [allowedDomain, setAllowedDomain] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -44,7 +45,14 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
         setLoading(true);
         try {
-            const result = await register(name.trim(), email.trim(), password, college.trim(), department.trim());
+            const result = await register(
+                name.trim(),
+                email.trim(),
+                password,
+                college.trim(),
+                department.trim(),
+                allowedDomain.trim()
+            );
             if (result.success) {
                 Alert.alert('Account Created! ✅', 'You can now login with your credentials.', [
                     { text: 'Go to Login', onPress: () => navigation.goBack() },
@@ -96,6 +104,13 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                     <Text style={styles.label}>Department</Text>
                     <TextInput style={styles.input} placeholder="e.g. Computer Science" placeholderTextColor="#475569"
                         value={department} onChangeText={setDepartment} editable={!loading} />
+                </View>
+
+                <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Institutional Domain</Text>
+                    <TextInput style={styles.input} placeholder="e.g. nitjsr.ac.in" placeholderTextColor="#475569"
+                        value={allowedDomain} onChangeText={setAllowedDomain} autoCapitalize="none" editable={!loading} />
+                    <Text style={styles.fieldHint}>Restricts attendance to students with this email domain.</Text>
                 </View>
 
                 <View style={styles.fieldGroup}>
@@ -174,4 +189,5 @@ const styles = StyleSheet.create({
     registerBtnDisabled: { opacity: 0.6 },
     registerBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
     row: { flexDirection: 'row', alignItems: 'center' },
+    fieldHint: { fontSize: 12, color: '#64748b', marginTop: 4, marginLeft: 2 },
 });

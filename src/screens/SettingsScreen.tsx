@@ -9,7 +9,7 @@ import {
     ScrollView,
     ActivityIndicator,
 } from 'react-native';
-import { getServerUrl, setServerUrl, pingServer, saveUser } from '../api';
+import { getServerUrl, setServerUrl, pingServer, saveUser, updateProfile } from '../api';
 import { APP_SECRET_HEADER } from '../config';
 
 interface SettingsScreenProps {
@@ -43,18 +43,9 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
         }
         setSaving(true);
         try {
-            const res = await fetch(`${getServerUrl()}/api/update-profile`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-                body: JSON.stringify({
-                    email: userEmail,
-                    name: name.trim(),
-                    college: college.trim(),
-                    department: department.trim(),
-                    allowedDomain: allowedDomain.replace(/@/g, '').trim(),
-                }),
-            });
-            const data = await res.json();
+            const cleanDomain = allowedDomain.replace(/@/g, '').trim().toLowerCase();
+            const data = await updateProfile(userEmail, name.trim(), college.trim(), department.trim(), cleanDomain);
+            
             if (data.success) {
                 Alert.alert('✅ Saved', 'Profile updated successfully.');
                 // Update storage so next launch has new data
@@ -352,19 +343,19 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
                     </View>
                     <View style={styles.aboutRow}>
                         <Text style={styles.aboutLabel}>Version</Text>
-                        <Text style={styles.aboutValue}>2.1</Text>
+                        <Text style={styles.aboutValue}>2.4.1</Text>
                     </View>
                     <View style={styles.aboutRow}>
                         <Text style={styles.aboutLabel}>Email Domain</Text>
-                        <Text style={styles.aboutValue}>@nitjsr.ac.in</Text>
+                        <Text style={styles.aboutValue}>{userAllowedDomain ? `@${userAllowedDomain}` : 'All allowed'}</Text>
                     </View>
                     <View style={styles.aboutRow}>
-                        <Text style={styles.aboutLabel}>Data Retention</Text>
-                        <Text style={styles.aboutValue}>2 days</Text>
+                        <Text style={styles.aboutLabel}>App ID</Text>
+                        <Text style={styles.aboutValue}>com.attendance.system</Text>
                     </View>
                     <View style={styles.aboutRow}>
-                        <Text style={styles.aboutLabel}>Google Sign-In</Text>
-                        <Text style={[styles.aboutValue, { color: '#22c55e' }]}>✅ Enabled</Text>
+                        <Text style={styles.aboutLabel}>Device Binding</Text>
+                        <Text style={[styles.aboutValue, { color: '#22c55e' }]}>✅ Active</Text>
                     </View>
                 </View>
 

@@ -11,17 +11,13 @@ export function getServerUrl() {
     return SERVER_URL;
 }
 
-// ==========================================
-// AUTH
-// ==========================================
-
 // Register
-export const register = async (name: string, email: string, password: string, college: string, department: string) => {
+export const register = async (name: string, email: string, password: string, college: string, department: string, allowedDomain?: string) => {
     try {
         const response = await fetch(`${SERVER_URL}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-            body: JSON.stringify({ name, email, password, college, department }),
+            body: JSON.stringify({ name, email, password, college, department, allowedDomain }),
         });
         return await response.json();
     } catch (error) {
@@ -73,6 +69,21 @@ export const changePassword = async (email: string, currentPassword: string, new
         });
         return await response.json();
     } catch (error) {
+        return { success: false, error: "Network error" };
+    }
+};
+
+// Update Profile
+export const updateProfile = async (email: string, name: string, college: string, department: string, allowedDomain: string) => {
+    try {
+        const response = await fetch(`${SERVER_URL}/api/update-profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            body: JSON.stringify({ email, name, college, department, allowedDomain }),
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Update Profile Error:", error);
         return { success: false, error: "Network error" };
     }
 };
