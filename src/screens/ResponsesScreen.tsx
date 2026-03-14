@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getResponses, getServerUrl } from '../api';
 import { REFRESH_INTERVAL_SEC } from '../config';
 
@@ -72,18 +73,39 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath);
 
             if (Platform.OS === 'android') {
-                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                if (permissions.granted) {
-                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
-                    const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                        permissions.directoryUri,
-                        fileName,
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                    );
-                    await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                    Alert.alert('Success', `File downloaded successfully!`);
-                } else {
-                    Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
+                let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
+                let useSaved = false;
+                const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+                
+                if (directoryUri) {
+                    try {
+                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                            directoryUri,
+                            fileName,
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        );
+                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                        Alert.alert('Success', `File saved to chosen folder!`);
+                        useSaved = true;
+                    } catch (e) {
+                        useSaved = false; // Folder deleted or permission revoked
+                    }
+                }
+                
+                if (!useSaved) {
+                    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                    if (permissions.granted) {
+                        await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                            permissions.directoryUri,
+                            fileName,
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        );
+                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                        Alert.alert('Success', `File saved to chosen folder!`);
+                    } else {
+                        Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
+                    }
                 }
             } else {
                 if (await Sharing.isAvailableAsync()) {
