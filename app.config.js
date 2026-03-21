@@ -6,7 +6,7 @@ module.exports = ({ config }) => {
         ...config,
         name: "Attendance System",
         slug: "attendance-system",
-        version: "2.5.1",
+        version: "2.6.0",
         orientation: "portrait",
         icon: "./assets/icon.png",
         userInterfaceStyle: "dark",
@@ -20,6 +20,12 @@ module.exports = ({ config }) => {
                 backgroundColor: "#0f172a",
             },
             package: "com.attendance.system",
+        },
+        updates: {
+            url: "https://u.expo.dev/8fbb94c8-1140-415e-95c3-64e1da1b5cc3",
+        },
+        runtimeVersion: {
+            policy: "appVersion",
         },
         extra: {
             APP_SECRET_KEY: process.env.APP_SECRET_KEY || "MISSING_KEY",
