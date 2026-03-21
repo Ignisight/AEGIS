@@ -205,90 +205,79 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         try {
             const serverUrl = getServerUrl();
             const targetIds = selected.size > 0 ? Array.from(selected) : sessions.map(s => s.id);
-            const ids = targetIds.join(',');
-            const url = `${serverUrl}/api/export-multi?ids=${ids}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+            const totalCount = targetIds.length;
 
-            // Determine if single session (xlsx) or multi (zip)
-            const isMulti = targetIds.length > 1;
-            const extension = isMulti ? 'zip' : 'xlsx';
-            const mimeType = isMulti
-                ? 'application/zip'
-                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-            // Build a descriptive filename
-            let fileName: string;
-            if (!isMulti) {
-                const s = sessions.find(s => s.id === targetIds[0]);
-                const safeName = (s?.name || 'Session').replace(/[^a-zA-Z0-9]/g, '_');
-                fileName = `Attendance_${safeName}_${targetIds[0]}.${extension}`;
-            } else {
-                const count = targetIds.length;
-                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                fileName = `Attendance_${count}_Sessions_${dateStr}.${extension}`;
+            if (totalCount === 0) {
+                Alert.alert('No sessions found.');
+                return;
             }
 
-            const filePath = `${FileSystem.documentDirectory}${fileName}`;
-            const downloadResult = await FileSystem.downloadAsync(url, filePath);
+            for (const sessionId of targetIds) {
+                const s = sessions.find(item => item.id === sessionId);
+                if (!s) continue;
 
-            if (action === 'export') {
-                if (await Sharing.isAvailableAsync()) {
-                    await Sharing.shareAsync(downloadResult.uri, {
-                        mimeType,
-                        dialogTitle: isMulti ? 'Export Attendance ZIP' : 'Export Attendance',
-                    });
-                } else {
-                    Alert.alert('Unavailable', 'Sharing is not available on this device');
-                }
-            } else {
-                if (Platform.OS === 'android') {
-                    let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
-                    let useSaved = false;
-                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+                // Build strict filename: attendance_<subject>_<date>_<time>.xlsx
+                const safeName = s.name.replace(/[^a-zA-Z0-9]/g, '_');
+                const d = new Date(s.createdAt);
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                let hh = d.getHours();
+                const min = String(d.getMinutes()).padStart(2, '0');
+                const ampm = hh >= 12 ? 'PM' : 'AM';
+                hh = hh % 12 || 12;
+                const hhStr = String(hh).padStart(2, '0');
 
-                    if (directoryUri) {
-                        try {
-                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                                directoryUri,
-                                fileName,
-                                mimeType
-                            );
-                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                            Alert.alert('Success', isMulti
-                                ? `ZIP with ${targetIds.length} attendance files saved!`
-                                : 'File saved to chosen folder!');
-                            useSaved = true;
-                        } catch (e) {
-                            useSaved = false;
-                        }
-                    }
+                const fileName = `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
+                const filePath = `${FileSystem.documentDirectory}${fileName}`;
+                const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                const url = `${serverUrl}/api/export?sessionId=${sessionId}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
 
-                    if (!useSaved) {
-                        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                        if (permissions.granted) {
-                            await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
-                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                                permissions.directoryUri,
-                                fileName,
-                                mimeType
-                            );
-                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                            Alert.alert('Success', isMulti
-                                ? `ZIP with ${targetIds.length} attendance files saved!`
-                                : 'File saved to chosen folder!');
-                        } else {
-                            Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
-                        }
-                    }
-                } else {
+                const downloadResult = await FileSystem.downloadAsync(url, filePath);
+
+                if (action === 'export') {
                     if (await Sharing.isAvailableAsync()) {
                         await Sharing.shareAsync(downloadResult.uri, {
                             mimeType,
-                            dialogTitle: 'Download Attendance',
+                            dialogTitle: `Export ${fileName}`,
                         });
+                    }
+                } else {
+                    if (Platform.OS === 'android') {
+                        let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
+                        const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+
+                        if (directoryUri) {
+                            try {
+                                const newUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, fileName, mimeType);
+                                await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            } catch (e) {
+                                // Fallback to prompt if directory invalid
+                                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                                if (permissions.granted) {
+                                    await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                                    const newUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
+                                    await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                                }
+                            }
+                        } else {
+                            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                            if (permissions.granted) {
+                                await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                                const newUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
+                                await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            }
+                        }
                     } else {
-                        Alert.alert('Saved', `File saved to:\n${filePath}`);
+                        if (await Sharing.isAvailableAsync()) {
+                            await Sharing.shareAsync(downloadResult.uri, { mimeType, dialogTitle: 'Save Attendance' });
+                        }
                     }
                 }
+            }
+
+            if (action === 'download') {
+                Alert.alert('Success', totalCount === 1 ? 'File saved!' : `${totalCount} files processed successfully!`);
             }
         } catch (err: any) {
             Alert.alert('Download Error', err.message || 'Failed to download');
@@ -461,7 +450,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                                     onPress={() => setMenuVisible(!menuVisible)}
                                     disabled={selected.size === 0}
                                 >
-                                    <Text style={styles.bottomBtnText}>📥 Download ({selected.size}) ▲</Text>
+                                    <Text style={styles.bottomBtnText}>📥 Download ▲</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.bottomBtn, styles.deleteBtn, { opacity: selected.size === 0 ? 0.5 : 1 }]}
@@ -477,7 +466,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                                     style={[styles.bottomBtn, styles.exportBtn]}
                                     onPress={() => setMenuVisible(!menuVisible)}
                                 >
-                                    <Text style={styles.bottomBtnText}>📥 Download All ▲</Text>
+                                    <Text style={styles.bottomBtnText}>📥 Download ▲</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.bottomBtn, styles.clearBtn]}

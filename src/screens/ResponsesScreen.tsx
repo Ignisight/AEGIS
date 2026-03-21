@@ -66,12 +66,22 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         setMenuVisible(false);
         setExporting(true);
         try {
-            // Download Excel directly from server
-            const serverUrl = getServerUrl();
-            const downloadUrl = `${serverUrl}/api/export?sessionId=${encodeURIComponent(sessionId)}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
-            const fileName = `Attendance_${sessionName.replace(/[^a-zA-Z0-9]/g, '_')}_${sessionId}.xlsx`;
+            const timestamp = sessionId;
+            const safeName = sessionName.replace(/[^a-zA-Z0-9]/g, '_');
+            const d = new Date(timestamp);
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            let hh = d.getHours();
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const ampm = hh >= 12 ? 'PM' : 'AM';
+            hh = hh % 12 || 12;
+            const hhStr = String(hh).padStart(2, '0');
+            const fileName = `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
 
+            const serverUrl = getServerUrl();
+            const downloadUrl = `${serverUrl}/api/export?sessionId=${encodeURIComponent(sessionId)}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath);
 
             if (action === 'export') {
