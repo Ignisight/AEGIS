@@ -25,7 +25,7 @@ interface ResponseRow {
 }
 
 export default function ResponsesScreen({ navigation, route }: ResponsesScreenProps) {
-    const { sessionName } = route.params;
+    const { sessionId, sessionName } = route.params;
 
     const [responses, setResponses] = useState<ResponseRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -39,7 +39,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         else setRefreshing(true);
 
         try {
-            const result = await getResponses(sessionName);
+            const result = await getResponses(sessionId);
             if (result.responses) setResponses(result.responses);
         } catch (err: any) {
             console.warn('Fetch error:', err.message);
@@ -47,7 +47,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             setLoading(false);
             setRefreshing(false);
         }
-    }, [sessionName]);
+    }, [sessionId]);
 
     useEffect(() => { fetchData(true); }, []);
 
@@ -68,8 +68,8 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         try {
             // Download Excel directly from server
             const serverUrl = getServerUrl();
-            const downloadUrl = `${serverUrl}/api/export?sessionName=${encodeURIComponent(sessionName)}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
-            const fileName = `Attendance_${sessionName.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+            const downloadUrl = `${serverUrl}/api/export?sessionId=${encodeURIComponent(sessionId)}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+            const fileName = `Attendance_${sessionName.replace(/[^a-zA-Z0-9]/g, '_')}_${sessionId}.xlsx`;
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
 
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath);

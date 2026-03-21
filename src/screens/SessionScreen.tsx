@@ -104,7 +104,10 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     };
 
     const viewResponses = () => {
-        navigation.navigate('Responses', { sessionName });
+        navigation.navigate('Responses', { 
+            sessionId: route.params.sessionId, 
+            sessionName 
+        });
     };
 
     const goBack = () => {

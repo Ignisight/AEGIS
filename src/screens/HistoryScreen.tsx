@@ -220,7 +220,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             if (!isMulti) {
                 const s = sessions.find(s => s.id === targetIds[0]);
                 const safeName = (s?.name || 'Session').replace(/[^a-zA-Z0-9]/g, '_');
-                fileName = `Attendance_${safeName}.${extension}`;
+                fileName = `Attendance_${safeName}_${targetIds[0]}.${extension}`;
             } else {
                 const count = targetIds.length;
                 const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -297,9 +297,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         }
     };
 
-    const viewResponses = (sessionName: string) => {
+    const viewResponses = (sessionId: number, sessionName: string) => {
         if (selectMode) return;
-        navigation.navigate('Responses', { sessionName });
+        navigation.navigate('Responses', { sessionId, sessionName });
     };
 
     const handleLongPress = (id: number) => {
@@ -327,7 +327,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                     isEffectivelyActive && styles.cardActive,
                     isSelected && styles.cardSelected,
                 ]}
-                onPress={() => selectMode ? toggleSelect(item.id) : viewResponses(item.name)}
+                onPress={() => selectMode ? toggleSelect(item.id) : viewResponses(item.id, item.name)}
                 onLongPress={() => handleLongPress(item.id)}
                 activeOpacity={0.7}
             >

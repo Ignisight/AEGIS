@@ -112,10 +112,10 @@ export async function stopSession(sessionId?: number) {
     return await res.json();
 }
 
-export async function getResponses(sessionName?: string) {
+export async function getResponses(sessionId?: number) {
     let url = `${SERVER_URL}/api/responses`;
-    if (sessionName) {
-        url += `?sessionName=${encodeURIComponent(sessionName)}`;
+    if (sessionId) {
+        url += `?sessionId=${encodeURIComponent(sessionId)}`;
     }
     const res = await fetch(url, { headers: APP_SECRET_HEADER });
     return await res.json();
