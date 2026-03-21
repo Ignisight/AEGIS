@@ -34,6 +34,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [actionLoading, setActionLoading] = useState(false);
+    const [menuVisible, setMenuVisible] = useState(false);
     const [now, setNow] = useState(Date.now());
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -198,8 +199,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         );
     };
 
-    const handleExportSelected = async () => {
+    const handleExportSelected = async (action: 'download' | 'export') => {
         setActionLoading(true);
+        setMenuVisible(false);
         try {
             const serverUrl = getServerUrl();
             const targetIds = selected.size > 0 ? Array.from(selected) : sessions.map(s => s.id);
@@ -228,53 +230,64 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
             const downloadResult = await FileSystem.downloadAsync(url, filePath);
 
-            if (Platform.OS === 'android') {
-                let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
-                let useSaved = false;
-                const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
-
-                if (directoryUri) {
-                    try {
-                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                            directoryUri,
-                            fileName,
-                            mimeType
-                        );
-                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', isMulti
-                            ? `ZIP with ${targetIds.length} attendance files saved!`
-                            : 'File saved to chosen folder!');
-                        useSaved = true;
-                    } catch (e) {
-                        useSaved = false;
-                    }
-                }
-
-                if (!useSaved) {
-                    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                    if (permissions.granted) {
-                        await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
-                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                            permissions.directoryUri,
-                            fileName,
-                            mimeType
-                        );
-                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', isMulti
-                            ? `ZIP with ${targetIds.length} attendance files saved!`
-                            : 'File saved to chosen folder!');
-                    } else {
-                        Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
-                    }
-                }
-            } else {
+            if (action === 'export') {
                 if (await Sharing.isAvailableAsync()) {
                     await Sharing.shareAsync(downloadResult.uri, {
                         mimeType,
-                        dialogTitle: 'Download Attendance',
+                        dialogTitle: isMulti ? 'Export Attendance ZIP' : 'Export Attendance',
                     });
                 } else {
-                    Alert.alert('Saved', `File saved to:\n${filePath}`);
+                    Alert.alert('Unavailable', 'Sharing is not available on this device');
+                }
+            } else {
+                if (Platform.OS === 'android') {
+                    let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
+                    let useSaved = false;
+                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+
+                    if (directoryUri) {
+                        try {
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                                directoryUri,
+                                fileName,
+                                mimeType
+                            );
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            Alert.alert('Success', isMulti
+                                ? `ZIP with ${targetIds.length} attendance files saved!`
+                                : 'File saved to chosen folder!');
+                            useSaved = true;
+                        } catch (e) {
+                            useSaved = false;
+                        }
+                    }
+
+                    if (!useSaved) {
+                        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                        if (permissions.granted) {
+                            await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                                permissions.directoryUri,
+                                fileName,
+                                mimeType
+                            );
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            Alert.alert('Success', isMulti
+                                ? `ZIP with ${targetIds.length} attendance files saved!`
+                                : 'File saved to chosen folder!');
+                        } else {
+                            Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
+                        }
+                    }
+                } else {
+                    if (await Sharing.isAvailableAsync()) {
+                        await Sharing.shareAsync(downloadResult.uri, {
+                            mimeType,
+                            dialogTitle: 'Download Attendance',
+                        });
+                    } else {
+                        Alert.alert('Saved', `File saved to:\n${filePath}`);
+                    }
                 }
             }
         } catch (err: any) {
@@ -423,45 +436,58 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
             {/* Bottom Action Bar */}
             {sessions.length > 0 && (
-                <View style={styles.bottomBar}>
-                    {actionLoading ? (
-                        <View style={styles.actionLoading}>
-                            <ActivityIndicator color="#6366f1" size="small" />
-                            <Text style={styles.actionLoadingText}>  Processing...</Text>
+                <View style={styles.bottomBarWrapper}>
+                    {menuVisible && (
+                        <View style={styles.menuContainer}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => handleExportSelected('download')}>
+                                <Text style={styles.menuItemText}>📥  Download</Text>
+                            </TouchableOpacity>
+                            <View style={styles.menuDivider} />
+                            <TouchableOpacity style={styles.menuItem} onPress={() => handleExportSelected('export')}>
+                                <Text style={styles.menuItemText}>📤  Export</Text>
+                            </TouchableOpacity>
                         </View>
-                    ) : selectMode ? (
-                        <>
-                            <TouchableOpacity
-                                style={[styles.bottomBtn, styles.exportBtn]}
-                                onPress={handleExportSelected}
-                                disabled={selected.size === 0}
-                            >
-                                <Text style={styles.bottomBtnText}>📥 Download ({selected.size})</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.bottomBtn, styles.deleteBtn]}
-                                onPress={handleDeleteSelected}
-                                disabled={selected.size === 0}
-                            >
-                                <Text style={styles.deleteBtnText}>🗑 Delete ({selected.size})</Text>
-                            </TouchableOpacity>
-                        </>
-                    ) : (
-                        <>
-                            <TouchableOpacity
-                                style={[styles.bottomBtn, styles.exportBtn]}
-                                onPress={handleExportSelected}
-                            >
-                                <Text style={styles.bottomBtnText}>📥 Download All</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.bottomBtn, styles.clearBtn]}
-                                onPress={handleClearAll}
-                            >
-                                <Text style={styles.clearBtnText}>🗑 Clear All</Text>
-                            </TouchableOpacity>
-                        </>
                     )}
+                    <View style={styles.bottomBar}>
+                        {actionLoading ? (
+                            <View style={styles.actionLoading}>
+                                <ActivityIndicator color="#6366f1" size="small" />
+                                <Text style={styles.actionLoadingText}>  Processing...</Text>
+                            </View>
+                        ) : selectMode ? (
+                            <>
+                                <TouchableOpacity
+                                    style={[styles.bottomBtn, styles.exportBtn, { opacity: selected.size === 0 ? 0.5 : 1 }]}
+                                    onPress={() => setMenuVisible(!menuVisible)}
+                                    disabled={selected.size === 0}
+                                >
+                                    <Text style={styles.bottomBtnText}>📥 Download ({selected.size}) ▲</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.bottomBtn, styles.deleteBtn, { opacity: selected.size === 0 ? 0.5 : 1 }]}
+                                    onPress={handleDeleteSelected}
+                                    disabled={selected.size === 0}
+                                >
+                                    <Text style={styles.deleteBtnText}>🗑 Delete ({selected.size})</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    style={[styles.bottomBtn, styles.exportBtn]}
+                                    onPress={() => setMenuVisible(!menuVisible)}
+                                >
+                                    <Text style={styles.bottomBtnText}>📥 Download All ▲</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.bottomBtn, styles.clearBtn]}
+                                    onPress={handleClearAll}
+                                >
+                                    <Text style={styles.clearBtnText}>🗑 Clear All</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
                 </View>
             )}
         </View>
@@ -522,8 +548,17 @@ const styles = StyleSheet.create({
     emptyDesc: { fontSize: 14, color: '#64748b', textAlign: 'center' },
 
     // Bottom bar
-    bottomBar: {
+    bottomBarWrapper: {
         position: 'absolute', bottom: 0, left: 0, right: 0,
+    },
+    menuContainer: {
+        backgroundColor: '#1e293b', borderRadius: 12, borderWidth: 1, borderColor: '#334155',
+        marginHorizontal: 20, marginBottom: 10, padding: 8,
+    },
+    menuItem: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center' },
+    menuDivider: { height: 1, backgroundColor: '#334155', marginHorizontal: 8 },
+    menuItemText: { color: '#f1f5f9', fontSize: 16, fontWeight: '600' },
+    bottomBar: {
         flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingVertical: 16,
         backgroundColor: '#0f172a', borderTopWidth: 1, borderTopColor: '#1e293b',
     },

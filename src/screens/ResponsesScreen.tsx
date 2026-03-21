@@ -31,6 +31,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [menuVisible, setMenuVisible] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(true);
 
     const fetchData = useCallback(async (showLoader = false) => {
@@ -56,12 +57,13 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         return () => clearInterval(interval);
     }, [autoRefresh, fetchData]);
 
-    const handleExport = async () => {
+    const handleExport = async (action: 'download' | 'export') => {
         if (responses.length === 0) {
             Alert.alert('No Data', 'There are no responses to export.');
             return;
         }
 
+        setMenuVisible(false);
         setExporting(true);
         try {
             // Download Excel directly from server
@@ -72,49 +74,60 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
 
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath);
 
-            if (Platform.OS === 'android') {
-                let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
-                let useSaved = false;
-                const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
-                
-                if (directoryUri) {
-                    try {
-                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                            directoryUri,
-                            fileName,
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        );
-                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', `File saved to chosen folder!`);
-                        useSaved = true;
-                    } catch (e) {
-                        useSaved = false; // Folder deleted or permission revoked
-                    }
-                }
-                
-                if (!useSaved) {
-                    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                    if (permissions.granted) {
-                        await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
-                        const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                            permissions.directoryUri,
-                            fileName,
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        );
-                        await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', `File saved to chosen folder!`);
-                    } else {
-                        Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
-                    }
-                }
-            } else {
+            if (action === 'export') {
                 if (await Sharing.isAvailableAsync()) {
                     await Sharing.shareAsync(downloadResult.uri, {
                         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        dialogTitle: 'Download Attendance',
+                        dialogTitle: 'Export Attendance',
                     });
                 } else {
-                    Alert.alert('Saved', `File saved to:\n${filePath}`);
+                    Alert.alert('Unavailable', 'Sharing is not available on this device');
+                }
+            } else {
+                if (Platform.OS === 'android') {
+                    let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
+                    let useSaved = false;
+                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+                    
+                    if (directoryUri) {
+                        try {
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                                directoryUri,
+                                fileName,
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            );
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            Alert.alert('Success', `File saved to chosen folder!`);
+                            useSaved = true;
+                        } catch (e) {
+                            useSaved = false; // Folder deleted or permission revoked
+                        }
+                    }
+                    
+                    if (!useSaved) {
+                        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                        if (permissions.granted) {
+                            await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                                permissions.directoryUri,
+                                fileName,
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            );
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                            Alert.alert('Success', `File saved to chosen folder!`);
+                        } else {
+                            Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
+                        }
+                    }
+                } else {
+                    if (await Sharing.isAvailableAsync()) {
+                        await Sharing.shareAsync(downloadResult.uri, {
+                            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            dialogTitle: 'Download Attendance',
+                        });
+                    } else {
+                        Alert.alert('Saved', `File saved to:\n${filePath}`);
+                    }
                 }
             }
         } catch (err: any) {
@@ -207,8 +220,19 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             )}
 
             <View style={styles.bottomActions}>
-                <TouchableOpacity style={styles.exportBtn} onPress={handleExport} disabled={exporting} activeOpacity={0.8}>
-                    <Text style={styles.exportBtnText}>{exporting ? '⏳ Downloading...' : '📥  Download Excel (.xlsx)'}</Text>
+                {menuVisible && (
+                    <View style={styles.menuContainer}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleExport('download')}>
+                            <Text style={styles.menuItemText}>📥  Download</Text>
+                        </TouchableOpacity>
+                        <View style={styles.menuDivider} />
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleExport('export')}>
+                            <Text style={styles.menuItemText}>📤  Export</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+                <TouchableOpacity style={styles.exportBtn} onPress={() => setMenuVisible(!menuVisible)} disabled={exporting} activeOpacity={0.8}>
+                    <Text style={styles.exportBtnText}>{exporting ? '⏳ Processing...' : '📥  Download  ▲'}</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -244,6 +268,10 @@ const styles = StyleSheet.create({
     emptyTitle: { fontSize: 18, fontWeight: '700', color: '#e2e8f0', marginBottom: 4 },
     emptyDesc: { fontSize: 14, color: '#64748b', textAlign: 'center' },
     bottomActions: { paddingHorizontal: 20, paddingVertical: 16, gap: 10, borderTopWidth: 1, borderTopColor: '#1e293b' },
+    menuContainer: { backgroundColor: '#1e293b', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: '#334155' },
+    menuItem: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center' },
+    menuDivider: { height: 1, backgroundColor: '#334155', marginHorizontal: 8 },
+    menuItemText: { color: '#f1f5f9', fontSize: 16, fontWeight: '600' },
     exportBtn: { backgroundColor: '#059669', paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
     exportBtnText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
 });
