@@ -1,9 +1,9 @@
-# 📱 QR Attendance System — Mobile App (v2.5.1)
+# 📱 QR Attendance System — Mobile App (v2.6.0)
 
-A secure, multi-role React Native mobile application for NIT Jamshedpur's QR-based attendance system. Teachers create live sessions with dynamic QR codes, and students scan them to mark attendance — all within a single APK.
+A secure, multi-role React Native mobile application for NIT Jamshedpur's QR-based attendance system. Teachers create live sessions with dynamic QR codes, and students scan them to mark attendance. **This version includes Over-the-Air (OTA) update support.**
 
 ### 📥 Download the App
-👉 [Download Android APK (v2.5.1)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5aa92fb6-902b-4f44-b7b9-b74bbe1d9d52)
+👉 [Download Android APK (v2.6.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5d2f4548-15b6-47e9-a055-1e10447c9310)
 
 ---
 
