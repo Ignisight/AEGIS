@@ -212,11 +212,30 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 return;
             }
 
-            for (const sessionId of targetIds) {
-                const s = sessions.find(item => item.id === sessionId);
-                if (!s) continue;
+            const isMulti = totalCount > 1;
+            let url: string;
+            let fileName: string;
+            let mimeType: string;
 
-                // Build strict filename: attendance_<subject>_<date>_<time>.xlsx
+            if (isMulti) {
+                // Determine ZIP filename based on subject selection
+                const targetSessions = sessions.filter(s => targetIds.includes(s.id));
+                const uniqueNames = [...new Set(targetSessions.map(s => s.name))];
+                
+                if (uniqueNames.length === 1) {
+                    const safeSubject = uniqueNames[0].replace(/[^a-zA-Z0-9]/g, '_');
+                    fileName = `attendance_${safeSubject}_sessions.zip`;
+                } else {
+                    fileName = `attendance_sessions_${Date.now()}.zip`;
+                }
+                
+                mimeType = 'application/zip';
+                const ids = targetIds.join(',');
+                url = `${serverUrl}/api/export-multi?ids=${ids}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+            } else {
+                const s = sessions.find(item => item.id === targetIds[0]);
+                if (!s) return;
+                
                 const safeName = s.name.replace(/[^a-zA-Z0-9]/g, '_');
                 const d = new Date(s.createdAt);
                 const dd = String(d.getDate()).padStart(2, '0');
@@ -228,39 +247,31 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 hh = hh % 12 || 12;
                 const hhStr = String(hh).padStart(2, '0');
 
-                const fileName = `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
-                const filePath = `${FileSystem.documentDirectory}${fileName}`;
-                const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                const url = `${serverUrl}/api/export?sessionId=${sessionId}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+                fileName = `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
+                mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                url = `${serverUrl}/api/export?sessionId=${targetIds[0]}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+            }
 
-                const downloadResult = await FileSystem.downloadAsync(url, filePath);
+            const filePath = `${FileSystem.documentDirectory}${fileName}`;
+            const downloadResult = await FileSystem.downloadAsync(url, filePath);
 
-                if (action === 'export') {
-                    if (await Sharing.isAvailableAsync()) {
-                        await Sharing.shareAsync(downloadResult.uri, {
-                            mimeType,
-                            dialogTitle: `Export ${fileName}`,
-                        });
-                    }
-                } else {
-                    if (Platform.OS === 'android') {
-                        let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
-                        const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+            if (action === 'export') {
+                if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(downloadResult.uri, {
+                        mimeType,
+                        dialogTitle: `Export ${fileName}`,
+                    });
+                }
+            } else {
+                if (Platform.OS === 'android') {
+                    let directoryUri = await AsyncStorage.getItem('savedExportDirectory');
+                    const base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
 
-                        if (directoryUri) {
-                            try {
-                                const newUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, fileName, mimeType);
-                                await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                            } catch (e) {
-                                // Fallback to prompt if directory invalid
-                                const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                                if (permissions.granted) {
-                                    await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
-                                    const newUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
-                                    await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                                }
-                            }
-                        } else {
+                    if (directoryUri) {
+                        try {
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, fileName, mimeType);
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+                        } catch (e) {
                             const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
                             if (permissions.granted) {
                                 await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
@@ -269,15 +280,22 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                             }
                         }
                     } else {
-                        if (await Sharing.isAvailableAsync()) {
-                            await Sharing.shareAsync(downloadResult.uri, { mimeType, dialogTitle: 'Save Attendance' });
+                        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                        if (permissions.granted) {
+                            await AsyncStorage.setItem('savedExportDirectory', permissions.directoryUri);
+                            const newUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
+                            await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
                         }
+                    }
+                } else {
+                    if (await Sharing.isAvailableAsync()) {
+                        await Sharing.shareAsync(downloadResult.uri, { mimeType, dialogTitle: 'Save Attendance' });
                     }
                 }
             }
 
             if (action === 'download') {
-                Alert.alert('Success', totalCount === 1 ? 'File saved!' : `${totalCount} files processed successfully!`);
+                Alert.alert('Success', isMulti ? 'ZIP archive saved!' : 'File saved!');
             }
         } catch (err: any) {
             Alert.alert('Download Error', err.message || 'Failed to download');
