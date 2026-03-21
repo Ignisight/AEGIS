@@ -202,11 +202,30 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         setActionLoading(true);
         try {
             const serverUrl = getServerUrl();
-            const ids = selected.size > 0 ? Array.from(selected).join(',') : sessions.map(s => s.id).join(',');
+            const targetIds = selected.size > 0 ? Array.from(selected) : sessions.map(s => s.id);
+            const ids = targetIds.join(',');
             const url = `${serverUrl}/api/export-multi?ids=${ids}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
-            const fileName = `Attendance_${selected.size > 0 ? 'Selected' : 'All'}.xlsx`;
-            const filePath = `${FileSystem.documentDirectory}${fileName}`;
 
+            // Determine if single session (xlsx) or multi (zip)
+            const isMulti = targetIds.length > 1;
+            const extension = isMulti ? 'zip' : 'xlsx';
+            const mimeType = isMulti
+                ? 'application/zip'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+            // Build a descriptive filename
+            let fileName: string;
+            if (!isMulti) {
+                const s = sessions.find(s => s.id === targetIds[0]);
+                const safeName = (s?.name || 'Session').replace(/[^a-zA-Z0-9]/g, '_');
+                fileName = `Attendance_${safeName}.${extension}`;
+            } else {
+                const count = targetIds.length;
+                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                fileName = `Attendance_${count}_Sessions_${dateStr}.${extension}`;
+            }
+
+            const filePath = `${FileSystem.documentDirectory}${fileName}`;
             const downloadResult = await FileSystem.downloadAsync(url, filePath);
 
             if (Platform.OS === 'android') {
@@ -219,13 +238,15 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
                             directoryUri,
                             fileName,
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            mimeType
                         );
                         await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', `File saved to chosen folder!`);
+                        Alert.alert('Success', isMulti
+                            ? `ZIP with ${targetIds.length} attendance files saved!`
+                            : 'File saved to chosen folder!');
                         useSaved = true;
                     } catch (e) {
-                        useSaved = false; // Folder deleted or permission revoked
+                        useSaved = false;
                     }
                 }
 
@@ -236,10 +257,12 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         const newUri = await FileSystem.StorageAccessFramework.createFileAsync(
                             permissions.directoryUri,
                             fileName,
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            mimeType
                         );
                         await FileSystem.writeAsStringAsync(newUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-                        Alert.alert('Success', `File saved to chosen folder!`);
+                        Alert.alert('Success', isMulti
+                            ? `ZIP with ${targetIds.length} attendance files saved!`
+                            : 'File saved to chosen folder!');
                     } else {
                         Alert.alert('Permission Denied', 'Storage permission must be granted to save the file directly.');
                     }
@@ -247,7 +270,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             } else {
                 if (await Sharing.isAvailableAsync()) {
                     await Sharing.shareAsync(downloadResult.uri, {
-                        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        mimeType,
                         dialogTitle: 'Download Attendance',
                     });
                 } else {
