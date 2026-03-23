@@ -11,6 +11,7 @@ module.exports = ({ config }) => {
         icon: "./assets/icon.png",
         userInterfaceStyle: "dark",
         newArchEnabled: false,
+        jsEngine: "hermes",
         splash: {
             backgroundColor: "#0f172a",
         },

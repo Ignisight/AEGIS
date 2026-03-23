@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
+import * as Crypto from 'expo-crypto';
+import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function StudentScannerScreen({ navigation }: any) {
@@ -44,7 +45,6 @@ export default function StudentScannerScreen({ navigation }: any) {
         if (!studentInfo) return;
 
         // Validate it's an attendance QR code
-        // Format is usually: https://attendance-server.../s/{sessionCode}
         const match = data.match(/\/s\/([a-zA-Z0-9_-]+)/);
         if (!match) {
             setMessage('Invalid QR code scanned. Try again.');
@@ -55,10 +55,18 @@ export default function StudentScannerScreen({ navigation }: any) {
         const sessionCode = match[1];
         setMessage('📍 Getting Location...');
 
-        // Geolocation Fetch
+        // Geolocation Fetch with Mock Location detection
         let location;
         try {
             location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            
+            // [SECURITY] Detect mock location / GPS spoofing
+            if (location.mocked) {
+                Alert.alert('Access Denied', 'GPS spoofing detected. Use your physical location.');
+                setScanned(false);
+                setMessage('GPS Spoofing detected');
+                return;
+            }
         } catch (err) {
             setMessage('Failed to get Location. Retrying...');
             location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -66,10 +74,23 @@ export default function StudentScannerScreen({ navigation }: any) {
 
         setMessage('⏳ Submitting Attendance...');
 
-        // Submit to specific React Native mobile API
+        // [SECURITY] Cryptographic Request Signing & Integrity Verification (Issue #8)
+        const timestamp = Date.now().toString();
+        const payload = studentInfo.email.toLowerCase().trim() + studentInfo.deviceId + sessionCode;
+        const signature = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            payload + timestamp + APP_SECRET_KEY
+        );
+
+        // Submit to specifically the React Native mobile API
         const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/submit`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 
+                'Content-Type': 'application/json', 
+                ...APP_SECRET_HEADER,
+                'x-signature': signature,
+                'x-timestamp': timestamp
+            },
             body: JSON.stringify({
                 email: studentInfo.email,
                 deviceId: studentInfo.deviceId,

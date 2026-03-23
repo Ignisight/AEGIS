@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
+import * as Device from 'expo-device';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
 
 export default function StudentLoginScreen({ navigation }: any) {
@@ -25,6 +26,11 @@ export default function StudentLoginScreen({ navigation }: any) {
     };
 
     const handleLogin = async () => {
+
+        if (!Device.isDevice) {
+            Alert.alert('Security Violation', 'This application can only be used on physical mobile devices.');
+            return;
+        }
 
         if (!email.trim() || !email.includes('@')) {
             Alert.alert('Invalid Email', 'Please enter your college email address.');
