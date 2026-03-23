@@ -1,11 +1,23 @@
-// Dynamic Expo config — reads secrets from environment variables at build time
-// This file replaces app.json and is NOT committed to GitHub with secrets
-
 module.exports = ({ config }) => {
+    // Multi-Account Support: Toggle between 'ignisight' or 'nexisight' via environment variable
+    const EXPO_ACCOUNT = process.env.EXPO_ACCOUNT || 'nexisight';
+    const PROJECTS = {
+      ignisight: { 
+        id: "8fbb94c8-1140-415e-95c3-64e1da1b5cc3", 
+        slug: "attendance-system" 
+      },
+      nexisight: { 
+        id: "8f17474b-1110-47b2-86ff-26ab0cb198d2", 
+        slug: "attendance-app" 
+      }
+    };
+    
+    const activeProject = PROJECTS[EXPO_ACCOUNT] || PROJECTS.nexisight;
+
     return {
         ...config,
         name: "Attendance System",
-        slug: "attendance-system",
+        slug: activeProject.slug,
         version: "2.7.0",
         orientation: "portrait",
         icon: "./assets/icon.png",
@@ -22,16 +34,13 @@ module.exports = ({ config }) => {
             },
             package: "com.attendance.system",
         },
-        updates: {
-            url: "https://u.expo.dev/8fbb94c8-1140-415e-95c3-64e1da1b5cc3",
-        },
         runtimeVersion: {
             policy: "appVersion",
         },
         extra: {
             APP_SECRET_KEY: process.env.APP_SECRET_KEY || "MISSING_KEY",
             eas: {
-                projectId: "8fbb94c8-1140-415e-95c3-64e1da1b5cc3",
+                projectId: activeProject.id,
             },
         },
         plugins: [

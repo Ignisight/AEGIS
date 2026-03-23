@@ -1,9 +1,9 @@
-# 📱 QR Attendance System — Mobile App (v2.6.0)
+# 📱 Nexisight Attendance App (v2.7.0)
 
-A secure, multi-role React Native mobile application for NIT Jamshedpur's QR-based attendance system. Teachers create live sessions with dynamic QR codes, and students scan them to mark attendance. **This version includes Over-the-Air (OTA) update support.**
+A secure, multi-role React Native mobile application for NIT Jamshedpur's QR-based attendance system. Teachers create live sessions with dynamic QR codes, and students scan them to mark attendance. **This version includes hardened security against mock locations and emulators.**
 
 ### 📥 Download the App
-👉 [Download Android APK (v2.6.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5d2f4548-15b6-47e9-a055-1e10447c9310)
+👉 [Download Latest Official APK (v2.7.0)](https://expo.dev/accounts/nexisights-organization/projects/attendance-app/builds/latest)
 
 ---
 
@@ -90,9 +90,10 @@ AttendanceSystem/
 
 | Feature | Description |
 |---|---|
-| **x-app-secret** | Every API call includes a secret header — blocks Postman, curl, scripts |
+| **Request Signing** | Cryptographic signatures (SHA-256) + 60s timestamp window — prevents replay attacks |
+| **Mock Location Block**| Natively detects and blocks "Fake GPS" and mock location application usage |
+| **Emulator Blocking** | Hardware-level identification blocks app usage on emulators/virtual devices |
 | **Device Binding** | 1 phone = 1 student email (SHA-256 hashed device ID, permanent) |
-| **No OTP Exposure** | OTP never shown in app UI, never in API responses |
 | **Build-time Secrets** | APP_SECRET_KEY injected via EAS Secrets, not in source code |
 | **GPS Geofencing** | Student must be within configured radius of teacher's location |
 
