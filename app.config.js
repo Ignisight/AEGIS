@@ -16,7 +16,7 @@ module.exports = ({ config }) => {
 
     return {
         ...config,
-        name: "Attendance System",
+        name: "A.E.G.I.S",
         slug: activeProject.slug,
         version: "2.7.0",
         orientation: "portrait",
@@ -45,12 +45,20 @@ module.exports = ({ config }) => {
         },
         plugins: [
             "expo-camera",
-            "expo-location",
+            [
+                "expo-location",
+                {
+                    "locationAlwaysAndWhenInUsePermission": "A.E.G.I.S needs location access to verify you remain in the classroom during the session.",
+                    "locationWhenInUsePermission": "A.E.G.I.S needs location access to verify you are in the classroom.",
+                    "isAndroidBackgroundLocationEnabled": true,
+                    "isAndroidForegroundServiceEnabled": true
+                }
+            ],
             [
                 "expo-image-picker",
                 {
-                    photosPermission: "Allow Attendance System to access your photos to scan QR codes from gallery.",
-                    cameraPermission: "Allow Attendance System to use camera to take pictures of QR codes.",
+                    photosPermission: "Allow A.E.G.I.S to access your photos to scan QR codes from gallery.",
+                    cameraPermission: "Allow A.E.G.I.S to use camera to take pictures of QR codes.",
                 },
             ],
         ],

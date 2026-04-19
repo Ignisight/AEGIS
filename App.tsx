@@ -15,6 +15,7 @@ import RoleScreen from './src/screens/RoleScreen';
 import StudentLoginScreen from './src/screens/StudentLoginScreen';
 import StudentDashboardScreen from './src/screens/StudentDashboardScreen';
 import StudentScannerScreen from './src/screens/StudentScannerScreen';
+import FaceSetupScreen from './src/screens/FaceSetupScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,10 +43,11 @@ export default function App() {
                     contentStyle: { backgroundColor: '#0f172a' },
                 }}
             >
-                <Stack.Screen name="RoleSelection" component={RoleScreen} />
-                <Stack.Screen name="StudentLogin" component={StudentLoginScreen} />
-                <Stack.Screen name="StudentDashboard" component={StudentDashboardScreen} />
-                <Stack.Screen name="StudentScanner" component={StudentScannerScreen} />
+                <Stack.Screen name="RoleSelection"     component={RoleScreen} />
+                <Stack.Screen name="StudentLogin"      component={StudentLoginScreen} />
+                <Stack.Screen name="FaceSetup"         component={FaceSetupScreen} />
+                <Stack.Screen name="StudentDashboard"  component={StudentDashboardScreen} />
+                <Stack.Screen name="StudentScanner"    component={StudentScannerScreen} />
 
                 <Stack.Screen name="Login" component={LoginScreen} />
                 <Stack.Screen name="Register" component={RegisterScreen} />

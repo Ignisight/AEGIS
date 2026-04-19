@@ -5,6 +5,7 @@ import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
+import { FACE_DESCRIPTOR_KEY } from './FaceSetupScreen';
 
 export default function StudentLoginScreen({ navigation }: any) {
     const [email, setEmail] = useState('');
@@ -19,7 +20,13 @@ export default function StudentLoginScreen({ navigation }: any) {
         try {
             const savedStudent = await AsyncStorage.getItem('student_user');
             if (savedStudent) {
-                navigation.replace('StudentDashboard');
+                // Check if face descriptor is set up
+                const descriptor = await AsyncStorage.getItem(FACE_DESCRIPTOR_KEY);
+                if (descriptor) {
+                    navigation.replace('StudentDashboard');
+                } else {
+                    navigation.replace('FaceSetup');
+                }
             }
         } catch (e) { }
         finally { setChecking(false); }
@@ -63,10 +70,13 @@ export default function StudentLoginScreen({ navigation }: any) {
             const data = await response.json();
             if (data.success) {
                 await AsyncStorage.setItem('student_user', JSON.stringify({
-                    email: email.toLowerCase().trim(),
-                    deviceId
+                    email:       email.toLowerCase().trim(),
+                    deviceId,
+                    name:        data.name        || data.displayName || '',
+                    displayName: data.displayName || data.name        || '',
                 }));
-                navigation.replace('StudentDashboard');
+                // Always go to FaceSetup first after a fresh login
+                navigation.replace('FaceSetup');
             } else {
                 Alert.alert('Registration Failed', data.error || 'Failed to register device.');
             }

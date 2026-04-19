@@ -11,7 +11,6 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { stopSession } from '../api';
-import { SESSION_DURATION_MS } from '../config';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
@@ -24,9 +23,12 @@ interface SessionScreenProps {
 }
 
 export default function SessionScreen({ navigation, route }: SessionScreenProps) {
-    const { sessionName, formUrl } = route.params;
+    const { sessionName, formUrl, sessionDurationMs } = route.params;
 
-    const [timeLeft, setTimeLeft] = useState(SESSION_DURATION_MS);
+    // Fall back to 1 hour if somehow not provided
+    const DURATION_MS: number = sessionDurationMs ?? 60 * 60 * 1000;
+
+    const [timeLeft, setTimeLeft] = useState(DURATION_MS);
     const [isActive, setIsActive] = useState(true);
     const [closing, setClosing] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,8 +44,7 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     useEffect(() => {
         if (!isActive) return;
 
-        const startTime = route.params.sessionId || Date.now();
-        const endTime = startTime + SESSION_DURATION_MS;
+        const endTime = Date.now() + DURATION_MS;
 
         const tick = () => {
             const now = Date.now();
@@ -57,9 +58,7 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
             setTimeLeft(remaining);
         };
 
-        // Initial tick
         tick();
-
         intervalRef.current = setInterval(tick, 1000);
 
         return () => {
@@ -79,7 +78,7 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
             Alert.alert(
                 auto ? 'Time Up!' : 'Session Terminated',
                 auto
-                    ? 'The 10-minute session has ended. Form is now closed.'
+                    ? 'The session duration has ended. The form is now closed.'
                     : 'Attendance session has been closed.',
                 [{ text: 'OK' }]
             );
@@ -92,21 +91,27 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
 
     const formatTime = (ms: number) => {
         const totalSec = Math.max(0, Math.floor(ms / 1000));
-        const min = Math.floor(totalSec / 60);
+        const hrs = Math.floor(totalSec / 3600);
+        const min = Math.floor((totalSec % 3600) / 60);
         const sec = totalSec % 60;
+        if (hrs > 0) {
+            return `${hrs.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        }
         return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     };
 
     const getTimerColor = () => {
-        if (timeLeft <= 60000) return '#ef4444';
-        if (timeLeft <= 180000) return '#f59e0b';
+        const thresholdLow = Math.min(60000, DURATION_MS * 0.1);
+        const thresholdMid = Math.min(180000, DURATION_MS * 0.3);
+        if (timeLeft <= thresholdLow) return '#ef4444';
+        if (timeLeft <= thresholdMid) return '#f59e0b';
         return '#22c55e';
     };
 
     const viewResponses = () => {
-        navigation.navigate('Responses', { 
-            sessionId: route.params.sessionId, 
-            sessionName 
+        navigation.navigate('Responses', {
+            sessionId: route.params.sessionId,
+            sessionName
         });
     };
 
@@ -150,12 +155,9 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     const handleShareQR = async () => {
         try {
             if (!viewShotRef.current) return;
-            // Delay slightly to ensure render
             const uri = await viewShotRef.current.capture();
             if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(uri, {
-                    dialogTitle: 'Share Session QR Code',
-                });
+                await Sharing.shareAsync(uri, { dialogTitle: 'Share Session QR Code' });
             } else {
                 Alert.alert('Sharing Unavailable', 'Your device does not support sharing right now.');
             }
