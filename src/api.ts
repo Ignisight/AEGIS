@@ -101,6 +101,32 @@ export async function startSession(sessionName: string, lat?: number, lon?: numb
     return await res.json();
 }
 
+// Fetch courses assigned to a teacher (from MongoDB)
+export async function getTeacherCourses(teacherEmail: string) {
+    try {
+        const res = await fetch(
+            `${SERVER_URL}/api/teacher-courses?teacherEmail=${encodeURIComponent(teacherEmail)}`,
+            { headers: APP_SECRET_HEADER }
+        );
+        return await res.json();
+    } catch {
+        return { success: false, error: 'Network error' };
+    }
+}
+
+// Fetch enrolled courses + attendance % for a student
+export async function getStudentCourses(email: string) {
+    try {
+        const res = await fetch(
+            `${SERVER_URL}/api/student/courses?email=${encodeURIComponent(email)}`,
+            { headers: APP_SECRET_HEADER }
+        );
+        return await res.json();
+    } catch {
+        return { success: false, error: 'Network error' };
+    }
+}
+
 export async function stopSession(sessionId?: number) {
     let url = `${SERVER_URL}/api/stop-session`;
     if (sessionId) url = `${SERVER_URL}/api/sessions/${sessionId}/stop`;

@@ -15,7 +15,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { startSession, getServerUrl, clearUser } from '../api';
+import { startSession, getServerUrl, clearUser, getTeacherCourses } from '../api';
 import { APP_SECRET_HEADER } from '../config';
 import * as Location from 'expo-location';
 
@@ -74,11 +74,9 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
         setCoursesError('');
         setSelectedCourse(null);
         try {
-            const url = `${getServerUrl()}?action=getCourses&teacherEmail=${encodeURIComponent(userEmail || '')}`;
-            const res  = await fetch(url, { headers: APP_SECRET_HEADER });
-            const json = await res.json();
-            if (json.error) {
-                setCoursesError(json.error);
+            const json = await getTeacherCourses(userEmail || '');
+            if (!json.success) {
+                setCoursesError(json.error || 'Could not load courses.');
             } else {
                 setCourses(json.courses || []);
             }

@@ -1,4 +1,4 @@
-# 📱 Nexisight Attendance App (v2.7.0)
+# 🛡️ A.E.G.I.S — Automated Entry Geo-fenced ID System (v2.7.0)
 
 A secure, multi-role React Native mobile application for NIT Jamshedpur's QR-based attendance system. Teachers create live sessions with dynamic QR codes, and students scan them to mark attendance. **This version includes hardened security against mock locations and emulators.**
 

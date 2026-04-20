@@ -26,7 +26,7 @@ export default function RoleScreen({ navigation }: any) {
             <StatusBar style="light" />
             <View style={styles.content}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Welcome to Attendance</Text>
+                    <Text style={styles.title}>Welcome to A.E.G.I.S</Text>
                     <Text style={styles.subtitle}>Please select your role to continue</Text>
                 </View>
 

@@ -1,18 +1,13 @@
 module.exports = ({ config }) => {
-    // Multi-Account Support: Toggle between 'ignisight' or 'nexisight' via environment variable
-    const EXPO_ACCOUNT = process.env.EXPO_ACCOUNT || 'nexisight';
+    // Project Configuration
     const PROJECTS = {
-      ignisight: { 
-        id: "8fbb94c8-1140-415e-95c3-64e1da1b5cc3", 
-        slug: "attendance-system" 
-      },
-      nexisight: { 
+      default: { 
         id: "8f17474b-1110-47b2-86ff-26ab0cb198d2", 
-        slug: "attendance-app" 
+        slug: "aegis-app" 
       }
     };
     
-    const activeProject = PROJECTS[EXPO_ACCOUNT] || PROJECTS.nexisight;
+    const activeProject = PROJECTS.default;
 
     return {
         ...config,
