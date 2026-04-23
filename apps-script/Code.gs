@@ -354,11 +354,23 @@ function doPost(e) {
   try {
     const contentType = e.postData ? e.postData.type : '';
 
+    // ── SECRET KEY VERIFICATION (Issue #3) ──────────────────────────
+    // The mobile app sends the secret in the JSON payload or headers
+    // For GAS, we check if the incoming JSON data has the correct key
+    const data = (contentType.indexOf('application/json') >= 0) ? JSON.parse(e.postData.contents) : null;
+    const props = getProps();
+    const SECRET_KEY = props.getProperty('APP_SECRET_KEY');
+
+    // If a secret is configured in Script Properties, verify it
+    if (SECRET_KEY && data && data.appSecret !== SECRET_KEY) {
+      return jsonResponse({ error: 'Access Denied: Invalid Secret Key' });
+    }
+
     if (contentType.indexOf('application/x-www-form-urlencoded') >= 0) {
       return handleStudentSubmission(e);
     }
 
-    const data   = JSON.parse(e.postData.contents);
+    if (!data) return jsonResponse({ error: 'Invalid request format' });
     const action = data.action;
 
     if (action === 'startSession')  return jsonResponse(startSession(data.sessionName));
@@ -531,32 +543,55 @@ function handleStudentSubmission(e) {
   const email  = (params.email || '').trim().toLowerCase();
   const name   = (params.name  || '').trim();
 
-  if (!email || !name) return jsonResponse({ error: 'Email and name are required' });
+  // ── 1. INPUT VALIDATION (Issue #6) ──────────────────────────────────
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return jsonResponse({ error: 'A valid college email is required' });
+  }
+  if (!name || name.length < 3 || name.length > 100) {
+    return jsonResponse({ error: 'Please enter a valid name (3-100 characters)' });
+  }
+  if (name.includes('<') || name.includes('>')) {
+    return jsonResponse({ error: 'Invalid characters in name' });
+  }
 
   const session = getSessionState();
   if (!session || !session.active) return jsonResponse({ error: 'Session is closed' });
 
-  const sheetId = getProps().getProperty('SHEET_ID');
-  const ss      = SpreadsheetApp.openById(sheetId);
-  const sheet   = ss.getSheetByName('Attendance');
-  const data    = sheet.getDataRange().getValues();
+  // ── 2. TRANSACTION SAFETY / LOCKING (Issue #2) ──────────────────────
+  const lock = LockService.getScriptLock();
+  try {
+    // Wait for up to 15 seconds for other submissions to finish
+    lock.waitLock(15000);
 
-  // Duplicate check — use session name column (index 3 now, after adding Name col)
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0].toString().toLowerCase() === email &&
-        data[i][3] === session.sessionName) {
-      return jsonResponse({ error: 'You have already submitted for this session' });
+    const sheetId = getProps().getProperty('SHEET_ID');
+    const ss      = SpreadsheetApp.openById(sheetId);
+    const sheet   = ss.getSheetByName('Attendance');
+    const data    = sheet.getDataRange().getValues();
+
+    // ── 3. DUPLICATE CHECK (Now inside the lock) ──────────────────────
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0].toString().toLowerCase() === email &&
+          data[i][3] === session.sessionName) {
+        return jsonResponse({ error: 'You have already submitted for this session' });
+      }
     }
+
+    const rollNumber = lookupRollNumber(email);
+    const now        = new Date();
+    // Using ISO 8601 consistently for the last column (Issue #11)
+    const dateStr    = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    const timeStr    = Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm:ss');
+
+    // Columns: Email, Name, Roll Number, Session Name, Date, Time, Timestamp
+    sheet.appendRow([email, name, rollNumber, session.sessionName, dateStr, timeStr, now.toISOString()]);
+    
+    return jsonResponse({ success: true, message: 'Attendance recorded' });
+
+  } catch (err) {
+    return jsonResponse({ error: 'Server busy or error: ' + err.toString() });
+  } finally {
+    lock.releaseLock();
   }
-
-  const rollNumber = lookupRollNumber(email);
-  const now        = new Date();
-  const dateStr    = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd/MM/yyyy');
-  const timeStr    = Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm:ss');
-
-  // Columns: Email, Name, Roll Number, Session Name, Date, Time, Timestamp
-  sheet.appendRow([email, name, rollNumber, session.sessionName, dateStr, timeStr, now.toISOString()]);
-  return jsonResponse({ success: true, message: 'Attendance recorded' });
 }
 
 // ==========================================

@@ -13,3 +13,5 @@ server/
 .env
 .env.local
 .env.production
+token.json
+credentials.json

@@ -231,7 +231,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 
                 mimeType = 'application/zip';
                 const ids = targetIds.join(',');
-                url = `${serverUrl}/api/export-multi?ids=${ids}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+                url = `${serverUrl}/api/export-multi?ids=${ids}`;
             } else {
                 const s = sessions.find(item => item.id === targetIds[0]);
                 if (!s) return;
@@ -249,11 +249,13 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
                 fileName = `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
                 mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                url = `${serverUrl}/api/export?sessionId=${targetIds[0]}&key=${encodeURIComponent(APP_SECRET_KEY)}`;
+                url = `${serverUrl}/api/export?sessionId=${targetIds[0]}`;
             }
 
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
-            const downloadResult = await FileSystem.downloadAsync(url, filePath);
+            const downloadResult = await FileSystem.downloadAsync(url, filePath, {
+                headers: APP_SECRET_HEADER,
+            });
 
             if (action === 'export') {
                 if (await Sharing.isAvailableAsync()) {
