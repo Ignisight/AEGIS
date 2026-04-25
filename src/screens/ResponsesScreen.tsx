@@ -25,22 +25,55 @@ interface ResponseRow {
 }
 
 export default function ResponsesScreen({ navigation, route }: ResponsesScreenProps) {
-    const { sessionId, sessionName } = route.params;
+    const { sessionId, sessionName, sessionDurationMs, createdAt } = route.params;
 
     const [responses, setResponses] = useState<ResponseRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(true);
+    const [summary, setSummary] = useState({ total: 0, present: 0, partial: 0, absent: 0 });
+
+    useEffect(() => {
+        if (!sessionDurationMs || !createdAt) return;
+        
+        const endTime = new Date(createdAt).getTime() + sessionDurationMs;
+        
+        const tick = () => {
+            const now = Date.now();
+            const remaining = endTime - now;
+            if (remaining <= 0) {
+                setTimeLeft(0);
+            } else {
+                setTimeLeft(remaining);
+            }
+        };
+
+        tick();
+        const timer = setInterval(tick, 1000);
+        return () => clearInterval(timer);
+    }, [sessionDurationMs, createdAt]);
+
+    const formatTime = (ms: number) => {
+        const totalSec = Math.max(0, Math.floor(ms / 1000));
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    };
 
     const fetchData = useCallback(async (showLoader = false) => {
         if (showLoader) setLoading(true);
         else setRefreshing(true);
 
         try {
-            const result = await getResponses(sessionId);
-            if (result.responses) setResponses(result.responses);
+            const res = await fetch(`${getServerUrl()}/api/sessions/${sessionId}/full-report`, { headers: APP_SECRET_HEADER });
+            const result = await res.json();
+            if (result.success) {
+                setResponses(result.report);
+                setSummary(result.summary);
+            }
         } catch (err: any) {
             console.warn('Fetch error:', err.message);
         } finally {
@@ -170,12 +203,34 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             <View style={styles.rowDetails}>
                 <View style={[styles.detailChip, { backgroundColor: '#0c4a6e' }]}>
                     <Text style={[styles.detailLabel, { color: '#7dd3fc' }]}>📅 Date</Text>
-                    <Text style={[styles.detailValue, { color: '#bae6fd' }]}>{item['Date'] || '—'}</Text>
+                    <Text style={[styles.detailValue, { color: '#bae6fd' }]}>{item['Date'] || item['date'] || '—'}</Text>
                 </View>
                 <View style={[styles.detailChip, { backgroundColor: '#0c4a6e' }]}>
                     <Text style={[styles.detailLabel, { color: '#7dd3fc' }]}>🕐 Time</Text>
-                    <Text style={[styles.detailValue, { color: '#bae6fd' }]}>{item['Time'] || '—'}</Text>
+                    <Text style={[styles.detailValue, { color: '#bae6fd' }]}>{item['Time'] || item['time'] || '—'}</Text>
                 </View>
+            </View>
+            <View style={styles.rowStatus}>
+                <View style={{flexDirection: 'row', gap: 8}}>
+                    <View style={[styles.statusBadge, 
+                        item.status === 'Present' ? styles.badgePresent : 
+                        item.status === 'Partial Attendance' ? styles.badgePartial : styles.badgeAbsent]}>
+                        <Text style={styles.statusBadgeText}>{item.status}</Text>
+                    </View>
+                    {item.networkStatus && (
+                        <View style={[styles.statusBadge, 
+                            item.networkStatus === 'campus' ? {backgroundColor: '#064e3b'} : 
+                            item.networkStatus === 'external' ? {backgroundColor: '#78350f'} : {backgroundColor: '#334155'}]}>
+                            <Text style={styles.statusBadgeText}>
+                                {item.networkStatus === 'campus' ? '🏢 CAMPUS' : 
+                                 item.networkStatus === 'external' ? '🌐 EXTERNAL' : '❓ UNKNOWN'}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+                {item.percentage !== undefined && (
+                    <Text style={styles.percentageText}>{item.percentage}% Present</Text>
+                )}
             </View>
         </View>
     );
@@ -192,8 +247,20 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backText}>← Back</Text>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.reset({
+                                index: 0,
+                                routes: [{ name: 'Home' }],
+                            });
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
+                    <Text style={styles.backText}>← Home</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Responses</Text>
                 <View style={styles.countBadge}>
@@ -202,6 +269,25 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             </View>
 
             <Text style={styles.session} numberOfLines={1}>{sessionName}</Text>
+
+            <View style={styles.summaryBar}>
+              <View style={[styles.summaryChip, styles.summaryPresent]}>
+                <Text style={styles.summaryChipNum}>{summary.present}</Text>
+                <Text style={styles.summaryChipLabel}>Present</Text>
+              </View>
+              <View style={[styles.summaryChip, styles.summaryPartial]}>
+                <Text style={styles.summaryChipNum}>{summary.partial}</Text>
+                <Text style={styles.summaryChipLabel}>Partial</Text>
+              </View>
+              <View style={[styles.summaryChip, styles.summaryAbsent]}>
+                <Text style={styles.summaryChipNum}>{summary.absent}</Text>
+                <Text style={styles.summaryChipLabel}>Absent</Text>
+              </View>
+              <View style={[styles.summaryChip, styles.summaryTotal]}>
+                <Text style={styles.summaryChipNum}>{summary.total}</Text>
+                <Text style={styles.summaryChipLabel}>Total</Text>
+              </View>
+            </View>
 
             <View style={styles.controls}>
                 <TouchableOpacity
@@ -213,6 +299,13 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
                 <TouchableOpacity style={styles.controlBtn} onPress={() => fetchData(false)}>
                     <Text style={styles.controlBtnText}>{refreshing ? '⏳' : '🔄'} Refresh</Text>
                 </TouchableOpacity>
+
+                {timeLeft !== null && (
+                    <View style={styles.timerBox}>
+                        <Text style={styles.timerLabel}>End in:</Text>
+                        <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
+                    </View>
+                )}
             </View>
 
             {responses.length === 0 ? (
@@ -279,6 +372,24 @@ const styles = StyleSheet.create({
     emptyIcon: { fontSize: 48, marginBottom: 12 },
     emptyTitle: { fontSize: 18, fontWeight: '700', color: '#e2e8f0', marginBottom: 4 },
     emptyDesc: { fontSize: 14, color: '#64748b', textAlign: 'center' },
+    summaryBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 16 },
+    summaryChip: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1 },
+    summaryChipNum: { color: '#ffffff', fontSize: 18, fontWeight: '800' },
+    summaryChipLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 },
+    summaryPresent: { backgroundColor: '#064e3b', borderColor: '#10b981' },
+    summaryPartial: { backgroundColor: '#451a03', borderColor: '#f59e0b' },
+    summaryAbsent:  { backgroundColor: '#450a0a', borderColor: '#ef4444' },
+    summaryTotal:   { backgroundColor: '#1e293b', borderColor: '#64748b' },
+    rowStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(51,65,85,0.4)' },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+    badgePresent: { backgroundColor: '#064e3b' },
+    badgePartial: { backgroundColor: '#451a03' },
+    badgeAbsent: { backgroundColor: '#450a0a' },
+    statusBadgeText: { color: '#ffffff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+    percentageText: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
+    timerBox: { flex: 1, backgroundColor: '#0f172a', borderRadius: 10, borderWidth: 1, borderColor: '#334155', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12 },
+    timerLabel: { color: '#64748b', fontSize: 11, fontWeight: '600' },
+    timerValue: { color: '#ffffff', fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
     bottomActions: { paddingHorizontal: 20, paddingVertical: 16, gap: 10, borderTopWidth: 1, borderTopColor: '#1e293b' },
     menuContainer: { backgroundColor: '#1e293b', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: '#334155' },
     menuItem: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center' },

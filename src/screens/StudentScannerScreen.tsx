@@ -22,8 +22,8 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import * as ImagePicker from 'expo-image-picker';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
+import * as FaceDetector from 'expo-face-detector';
 
 // ── Task & Storage Keys ────────────────────────────────────────────────────
 const GEOFENCE_TASK      = 'aegis-geofence-task';
@@ -33,7 +33,7 @@ const LAST_STATUS_KEY    = 'aegis_geofence_last_status'; // 'true' | 'false'
 // ── Flow Types ──────────────────────────────────────────────────────────────
 type FlowStep = 
     | 'scanning'        // waiting for QR scan
-    | 'face-capture'    // QR done, waiting for selfie
+    | 'face-capture'    // QR done, waiting for selfie (with blink)
     | 'processing'      // sending to server
     | 'done';           // complete
 
@@ -101,26 +101,26 @@ export default function StudentScannerScreen({ navigation }: any) {
     const [scanned, setScanned] = useState(false);
     const [tracking, setTracking] = useState(false);
     const [inRange, setInRange]   = useState<boolean | null>(null);
-    const [message, setMessage]   = useState("Aim camera at Teacher's QR Code");
+    const [message, setMessage]   = useState("Verify identity to continue");
 
-    const [step, setStep] = useState<FlowStep>('scanning');
+    const [step, setStep] = useState<FlowStep>('face-capture');
     const [pendingCode, setPendingCode] = useState<string | null>(null);
     const cameraRef = useRef<any>(null);
+
+    // ── Liveness Detection State ───────────────────────────────────────────
+    const [isBlinking, setIsBlinking] = useState(false);
+    const [blinkConfirmed, setBlinkConfirmed] = useState(false);
+    const [faceDetected, setFaceDetected] = useState(false);
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
     const studentInfoRef = useRef<{ email: string; deviceId: string } | null>(null);
     const uiPollRef = useRef<NodeJS.Timeout | null>(null);
+    const [savedLocation, setSavedLocation] = useState<{lat: number, lon: number} | null>(null);
 
     useEffect(() => {
         (async () => {
             const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
             const { status: fgStatus }  = await Location.requestForegroundPermissionsAsync();
-            let bgGranted = false;
-            try {
-                const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
-                bgGranted = bgStatus === 'granted';
-            } catch { /* ignore */ }
-
             setHasPermission(camStatus === 'granted' && fgStatus === 'granted');
 
             const savedString = await AsyncStorage.getItem('student_user');
@@ -175,33 +175,73 @@ export default function StudentScannerScreen({ navigation }: any) {
         }, 5000);
     };
 
+    const onFacesDetected = async ({ faces }: any) => {
+        if (step !== 'face-capture' || blinkConfirmed) return;
+
+        if (faces.length === 0) {
+            setFaceDetected(false);
+            setMessage("No face detected");
+            return;
+        }
+
+        setFaceDetected(true);
+        const face = faces[0];
+        
+        // Blink logic: Both eyes must be closed (<0.2) then opened (>0.7)
+        const leftOpen = face.leftEyeOpenProbability;
+        const rightOpen = face.rightEyeOpenProbability;
+
+        if (leftOpen < 0.2 && rightOpen < 0.2) {
+            setIsBlinking(true);
+            setMessage("Blink detected! Keep still...");
+        } else if (isBlinking && leftOpen > 0.7 && rightOpen > 0.7) {
+            // Blink complete! Auto-capture
+            setIsBlinking(false);
+            setBlinkConfirmed(true);
+            setMessage("Liveness verified! Capturing...");
+            captureSecureSelfie();
+        } else if (!isBlinking) {
+            setMessage("Blink your eyes to verify liveness");
+        }
+    };
+
+    const captureSecureSelfie = async () => {
+        if (!cameraRef.current) return;
+        try {
+            const photo = await cameraRef.current.takePictureAsync({
+                quality: 0.5,
+                base64: true,
+                exif: false,
+            });
+            setStep('processing');
+            await handleFaceVerification(`data:image/jpeg;base64,${photo.base64}`);
+        } catch (err: any) {
+            Alert.alert('Capture Error', err.message);
+            resetToFace();
+        }
+    };
+
     const handleBarcodeScanned = async ({ data }: { type: string; data: string }) => {
         if (step !== 'scanning' || !studentInfo) return;
         const match = data.match(/\/s\/([a-zA-Z0-9_-]+)/);
         if (!match) { setMessage('Invalid QR. Try again.'); return; }
-        setPendingCode(match[1]);
-        setStep('face-capture');
-        setMessage('QR verified! Now take a selfie to confirm identity.');
-    };
-
-    const handleCaptureSelfie = async () => {
-        if (!cameraRef.current || !pendingCode || !studentInfo) return;
         setStep('processing');
-        setMessage('Capturing...');
-        try {
-            const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, base64: true, exif: false, width: 640 });
-            await handleFaceVerification(`data:image/jpeg;base64,${photo.base64}`);
-        } catch (err: any) { Alert.alert('Camera Error', err.message); reset(); }
+        submitAttendance(match[1]);
     };
 
     const handleFaceVerification = async (b64Image: string) => {
-        if (!studentInfo || !pendingCode) return;
+        if (!studentInfo) return;
         try {
             setMessage('Verifying identity...');
             const verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-                body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, image: b64Image }),
+                body: JSON.stringify({ 
+                    email: studentInfo.email, 
+                    deviceId: studentInfo.deviceId, 
+                    image: b64Image,
+                    livenessVerified: true // Signal to server that app checked for blink
+                }),
             });
             const verifyData = await verifyRes.json();
 
@@ -213,26 +253,38 @@ export default function StudentScannerScreen({ navigation }: any) {
                     body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, image: b64Image }),
                 });
                 const regData = await regRes.json();
-                if (!regData.success) { Alert.alert('Registration Failed', regData.error, [{ text: 'OK', onPress: reset }]); return; }
-                await submitAttendance(pendingCode);
+                if (!regData.success) { Alert.alert('Registration Failed', regData.error, [{ text: 'OK', onPress: resetToFace }]); return; }
+                
+                await getLocationAndProceed();
                 return;
             }
 
             if (!verifyData.success || !verifyData.verified) {
-                Alert.alert('❌ Identity Failed', verifyData.error || 'Face mismatch.', [{ text: 'OK', onPress: reset }]);
+                Alert.alert('❌ Identity Failed', verifyData.error || 'Face mismatch.', [{ text: 'OK', onPress: resetToFace }]);
                 return;
             }
-            await submitAttendance(pendingCode);
-        } catch (err: any) { Alert.alert('Error', err.message); reset(); }
+            
+            await getLocationAndProceed();
+        } catch (err: any) { Alert.alert('Error', err.message); resetToFace(); }
     };
 
-    const submitAttendance = async (sessionCode: string) => {
-        if (!studentInfo) return;
+    const getLocationAndProceed = async () => {
         try {
             setMessage('📍 Getting location...');
             const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-            if (location.mocked) { Alert.alert('Access Denied', 'GPS spoofing detected.'); reset(); return; }
+            if (location.mocked) { Alert.alert('Access Denied', 'GPS spoofing detected.'); resetToFace(); return; }
+            setSavedLocation({ lat: location.coords.latitude, lon: location.coords.longitude });
+            resetToScanning();
+        } catch (err: any) {
+            Alert.alert('Location Error', 'Could not get location. Try again.');
+            resetToFace();
+        }
+    };
 
+    const submitAttendance = async (sessionCode: string, locationOverride?: {lat: number, lon: number}) => {
+        const locToUse = locationOverride || savedLocation;
+        if (!studentInfo || !locToUse) return;
+        try {
             setMessage('⏳ Submitting...');
             const timestamp = Date.now().toString();
             const payload   = studentInfo.email.toLowerCase().trim() + studentInfo.deviceId + sessionCode;
@@ -241,18 +293,18 @@ export default function StudentScannerScreen({ navigation }: any) {
             const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER, 'x-signature': signature, 'x-timestamp': timestamp },
-                body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, sessionCode, lat: location.coords.latitude, lon: location.coords.longitude, faceVerified: true }),
+                body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, sessionCode, lat: locToUse.lat, lon: locToUse.lon, faceVerified: true }),
             });
 
             const data = await res.json();
             if (data.success) {
                 setStep('done');
                 setMessage('✅ Attendance Recorded!');
-                Alert.alert('Success', 'Face verified and attendance marked.');
+                Alert.alert('Success', 'Face verified, Network Identity confirmed, and attendance marked.');
                 await startBackgroundTracking({
                     sessionCode,
-                    lat: data.lat ?? location.coords.latitude,
-                    lon: data.lon ?? location.coords.longitude,
+                    lat: data.lat ?? locToUse.lat,
+                    lon: data.lon ?? locToUse.lon,
                     radius: data.radius ?? 200,
                     expiresAt: Date.now() + (data.sessionDurationMs ?? 3600000),
                     serverUrl: DEFAULT_SERVER_URL,
@@ -260,62 +312,73 @@ export default function StudentScannerScreen({ navigation }: any) {
                     email: studentInfo.email,
                     deviceId: studentInfo.deviceId,
                 });
-            } else { Alert.alert('Failed', data.error, [{ text: 'OK', onPress: reset }]); }
-        } catch (err: any) { Alert.alert('Network Error', err.message); reset(); }
+            } else { Alert.alert('Failed', data.error, [{ text: 'OK', onPress: resetToScanning }]); }
+        } catch (err: any) { Alert.alert('Network Error', err.message); resetToScanning(); }
     };
 
-    const reset = () => { setStep('scanning'); setPendingCode(null); setScanned(false); setMessage("Aim camera at Teacher's QR Code"); };
-
-    const uploadFromGallery = async () => {
-        if (step !== 'scanning' || !studentInfo) return;
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-        if (!result.canceled && result.assets?.length > 0) { setStep('processing'); await processGalleryImage(result.assets[0].uri); }
+    const resetToFace = () => { 
+        setStep('face-capture'); 
+        setPendingCode(null); 
+        setScanned(false); 
+        setSavedLocation(null); 
+        setBlinkConfirmed(false);
+        setIsBlinking(false);
+        setMessage("Blink your eyes to verify liveness"); 
     };
 
-    const processGalleryImage = async (uri: string) => {
-        try {
-            setMessage('Decoding QR...');
-            const formData = new FormData();
-            formData.append('qrimage', { uri, name: 'scan.jpg', type: 'image/jpeg' } as any);
-            const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/decode-qr`, { method: 'POST', headers: APP_SECRET_HEADER, body: formData });
-            const data = await res.json();
-            if (data.success && data.data) {
-                const match = data.data.match(/\/s\/([a-zA-Z0-9_-]+)/);
-                if (match) { setPendingCode(match[1]); setStep('face-capture'); setMessage('QR verified! Now take a selfie.'); }
-                else { Alert.alert('Invalid QR', 'Not an attendance QR.'); reset(); }
-            } else { Alert.alert('No QR Found', data.error); reset(); }
-        } catch { Alert.alert('Error', 'Server unreachable.'); reset(); }
-    };
+    const resetToScanning = () => { setStep('scanning'); setPendingCode(null); setScanned(false); setMessage("Aim camera at Teacher's QR Code"); };
 
     if (hasPermission === null) return <View style={styles.container}><Text style={styles.text}>Requesting permissions...</Text></View>;
     if (hasPermission === false) return <View style={styles.container}><Text style={styles.text}>Camera/Location access required.</Text></View>;
-
-    const rangeBadge = tracking && inRange !== null
-        ? inRange
-            ? <View style={[styles.rangeBadge, styles.rangeBadgeIn]}><Text style={styles.rangeBadgeText}>✅ In Range</Text></View>
-            : <View style={[styles.rangeBadge, styles.rangeBadgeOut]}><Text style={styles.rangeBadgeText}>⚠️ Out of Range</Text></View>
-        : null;
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Text style={styles.backText}>← Dashboard</Text></TouchableOpacity>
-                <Text style={styles.headerTitle}>{step === 'scanning' ? 'Scan Session QR' : step === 'face-capture' ? 'Verify Identity' : 'Processing...'}</Text>
+                <Text style={styles.headerTitle}>{step === 'scanning' ? 'Scan Session QR' : step === 'face-capture' ? 'Liveness Challenge' : 'Processing...'}</Text>
                 <View style={{ width: 80 }} />
             </View>
             <View style={styles.cameraFrame}>
-                <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} onBarcodeScanned={step === 'scanning' ? handleBarcodeScanned : undefined} barcodeScannerSettings={{ barcodeTypes: ['qr'] }} facing={step === 'face-capture' ? 'front' : 'back'}>
-                    {step === 'scanning' && <View style={styles.qrOverlay}><View style={styles.unfocused} /><View style={styles.middle}><View style={styles.unfocused} /><View style={styles.focused} /><View style={styles.unfocused} /></View><View style={styles.unfocused} /></View>}
-                    {step === 'face-capture' && <View style={styles.faceOverlay}><Text style={styles.faceGuideText}>Position your face in the circle</Text><View style={styles.faceCircle} /><Text style={styles.faceTip}>Good lighting · Only your face · Look straight ahead</Text><TouchableOpacity style={styles.captureBtn} onPress={handleCaptureSelfie}><Text style={styles.captureBtnText}>📸 Verify Identity</Text></TouchableOpacity><TouchableOpacity style={styles.cancelBtn} onPress={reset}><Text style={styles.cancelBtnText}>✕ Cancel</Text></TouchableOpacity></View>}
-                    {step === 'processing' && <View style={styles.processingOverlay}><ActivityIndicator size="large" color="#6366f1" /><Text style={styles.processingText}>{message}</Text></View>}
-                </CameraView>
+                {step === 'scanning' && (
+                    <CameraView 
+                        style={StyleSheet.absoluteFillObject} 
+                        onBarcodeScanned={handleBarcodeScanned} 
+                        barcodeScannerSettings={{ barcodeTypes: ['qr'] }} 
+                        facing="back"
+                    >
+                        <View style={styles.qrOverlay}><View style={styles.unfocused} /><View style={styles.middle}><View style={styles.unfocused} /><View style={styles.focused} /><View style={styles.unfocused} /></View><View style={styles.unfocused} /></View>
+                    </CameraView>
+                )}
+                {step === 'face-capture' && (
+                    <CameraView
+                        ref={cameraRef}
+                        style={StyleSheet.absoluteFillObject}
+                        facing="front"
+                        onFacesDetected={onFacesDetected}
+                        faceDetectorSettings={{
+                            mode: FaceDetector.FaceDetectorMode.fast,
+                            detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
+                            runClassifications: FaceDetector.FaceDetectorClassifications.all,
+                            minDetectionInterval: 100,
+                            tracking: true,
+                        }}
+                    >
+                        <View style={styles.faceOverlay}>
+                            <Text style={styles.faceGuideText}>{message}</Text>
+                            <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
+                            {isBlinking && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
+                            <Text style={styles.faceTip}>Place your face in the circle and blink naturally.</Text>
+                        </View>
+                    </CameraView>
+                )}
+                {step === 'processing' && (
+                    <View style={styles.processingOverlay}><ActivityIndicator size="large" color="#6366f1" /><Text style={styles.processingText}>{message}</Text></View>
+                )}
             </View>
             <View style={styles.footer}>
                 <Text style={styles.footerEmail}>{studentInfo?.email}</Text>
                 <Text style={styles.footerMsg}>{message}</Text>
-                {rangeBadge}
-                {step === 'scanning' && <TouchableOpacity style={styles.galleryBtn} onPress={uploadFromGallery}><Text style={styles.galleryBtnText}>🖼️ Upload QR from Gallery</Text></TouchableOpacity>}
-                {tracking && <Text style={styles.trackingNote}>📡 Background tracking active — safe to minimize</Text>}
+                {step === 'scanning' && <TouchableOpacity style={styles.galleryBtn} onPress={() => Alert.alert('Security Lock', 'Gallery upload is disabled for identity verification.')}><Text style={[styles.galleryBtnText, {color: '#64748b'}]}>🖼️ Gallery Disabled</Text></TouchableOpacity>}
             </View>
         </View>
     );
@@ -333,14 +396,10 @@ const styles = StyleSheet.create({
     unfocused: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' },
     middle: { flexDirection: 'row', flex: 1.5 },
     focused: { flex: 6, borderWidth: 2, borderColor: '#22c55e' },
-    faceOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 32, gap: 20 },
-    faceGuideText: { color: '#f1f5f9', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-    faceCircle: { width: 220, height: 220, borderRadius: 110, borderWidth: 3, borderColor: '#6366f1', borderStyle: 'dashed' },
-    faceTip: { color: '#94a3b8', fontSize: 12, textAlign: 'center', lineHeight: 18 },
-    captureBtn: { backgroundColor: '#6366f1', paddingVertical: 16, paddingHorizontal: 48, borderRadius: 14, width: '100%', alignItems: 'center' },
-    captureBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    cancelBtn: { paddingVertical: 8 },
-    cancelBtnText: { color: '#94a3b8', fontSize: 14 },
+    faceOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+    faceGuideText: { color: '#f1f5f9', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 40, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 4 },
+    faceCircle: { width: 260, height: 260, borderRadius: 130, borderWidth: 4, borderColor: '#6366f1', borderStyle: 'dashed' },
+    faceTip: { color: '#f1f5f9', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: '600' },
     processingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', gap: 20 },
     processingText: { color: '#f1f5f9', fontSize: 16, fontWeight: '600', textAlign: 'center', paddingHorizontal: 32 },
     footer: { padding: 24, backgroundColor: '#0f172a', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#1e293b' },

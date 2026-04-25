@@ -70,7 +70,13 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
             const result = await resetPassword(email.trim(), otp, newPassword);
             if (result.success) {
                 Alert.alert('Password Reset! ✅', 'You can now login with your new password.', [
-                    { text: 'Go to Login', onPress: () => navigation.navigate('Login') },
+                    { 
+                        text: 'Go to Login', 
+                        onPress: () => navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Login' }],
+                        }) 
+                    },
                 ]);
             } else {
                 Alert.alert('Error', result.error || 'Reset failed');

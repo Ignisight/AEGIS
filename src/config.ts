@@ -7,9 +7,9 @@ import Constants from 'expo-constants';
 // A.E.G.I.S Server URL
 // Repo:    github.com/Ignisight/attendance-server  (local: E:\AG\AEGIS-Server)
 // Deploy:  Render → service name "aegis-server"
-// ⚠️  When you get a new Render URL, change ONLY this line then rebuild APK.
+// ⚠️  Updated for production build.
 // ─────────────────────────────────────────────────────────────────────────
-export const DEFAULT_SERVER_URL = 'https://attendance-server-ddgs.onrender.com'; // ← CHANGE THIS
+export const DEFAULT_SERVER_URL = 'https://aegis-server-02y5.onrender.com'; // ← NEW LIVE URL
 
 
 // Security: App Secret Key injected at build time via app.config.js

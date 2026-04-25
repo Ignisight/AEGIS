@@ -1,15 +1,4 @@
-/**
- * FaceSetupScreen.tsx
- *
- * One-time face enrollment. Runs immediately after first login.
- * Captures a reference selfie → extracts face descriptor via FaceVerifyWebView
- * → stores 128-float descriptor in AsyncStorage (NOT the photo).
- *
- * Navigation:
- *   StudentLogin ──▶ FaceSetup ──▶ StudentDashboard
- */
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -18,180 +7,250 @@ import {
     ActivityIndicator,
     Alert,
     ScrollView,
+    Dimensions,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FaceDetector from 'expo-face-detector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import FaceVerifyWebView from '../components/FaceVerifyWebView';
+import { registerFace } from '../api';
 
-export const FACE_DESCRIPTOR_KEY = 'student_face_descriptor';
+const { width } = Dimensions.get('window');
 
-type Stage = 'intro' | 'loading_models' | 'capture' | 'processing' | 'done' | 'error';
+type Stage = 'intro' | 'capture' | 'processing' | 'done' | 'error';
 
 export default function FaceSetupScreen({ navigation }: any) {
-    const [stage, setStage]           = useState<Stage>('intro');
-    const [selfieBase64, setSelfieBase64] = useState<string | null>(null);
-    const [errorMsg, setErrorMsg]     = useState('');
-    const [showWebView, setShowWebView] = useState(false);
+    const [permission, requestPermission] = useCameraPermissions();
+    const [stage, setStage] = useState<Stage>('intro');
+    const [errorMsg, setErrorMsg] = useState('');
+    const [blinkCount, setBlinkCount] = useState(0);
+    const [eyesClosed, setEyesClosed] = useState(false);
+    
+    const cameraRef = useRef<any>(null);
+    const isCapturing = useRef(false);
 
-    // ── Step 1: Take selfie ────────────────────────────────────────────────
-    const takeSelfie = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Camera permission is needed to set up face verification.');
-            return;
+    // ── BLINK DETECTION ──────────────────────────────────────────────────
+    const onFacesDetected = ({ faces }: any) => {
+        if (stage !== 'capture' || isCapturing.current) return;
+        if (faces.length === 0) return;
+
+        const face = faces[0];
+        const leftOpen  = face.leftEyeOpenProbability;
+        const rightOpen = face.rightEyeOpenProbability;
+
+        // Detect blink (eyes go from open -> closed -> open)
+        if (!eyesClosed && leftOpen < 0.2 && rightOpen < 0.2) {
+            setEyesClosed(true);
+        } else if (eyesClosed && leftOpen > 0.7 && rightOpen > 0.7) {
+            setEyesClosed(false);
+            setBlinkCount(prev => prev + 1);
+            
+            // Require 1 clear blink to capture
+            autoCapture();
         }
+    };
 
-        const result = await ImagePicker.launchCameraAsync({
-            cameraType: ImagePicker.CameraType.front,
-            quality: 0.85,
-            base64: true,
-            allowsEditing: true,
-            aspect: [1, 1],
-        });
-
-        if (result.canceled || !result.assets?.[0]?.base64) return;
-
-        const b64 = result.assets[0].base64!;
-        setSelfieBase64(b64);
+    const autoCapture = async () => {
+        if (isCapturing.current) return;
+        isCapturing.current = true;
         setStage('processing');
-        setShowWebView(true); // mount the FaceVerifyWebView
-    };
 
-    // ── Step 2: Descriptor received from WebView ──────────────────────────
-    const handleDescriptor = async (descriptor: number[]) => {
         try {
-            await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(descriptor));
-            setStage('done');
-            setShowWebView(false);
-        } catch {
-            setErrorMsg('Failed to save face data. Please try again.');
+            if (!cameraRef.current) throw new Error("Camera not ready");
+
+            const photo = await cameraRef.current.takePictureAsync({ 
+                quality: 0.7, 
+                base64: true,
+                skipProcessing: false 
+            });
+
+            const userJson = await AsyncStorage.getItem('student_user');
+            const deviceId = await AsyncStorage.getItem('deviceId');
+            if (!userJson || !deviceId) throw new Error("Session expired. Log in again.");
+
+            const { email } = JSON.parse(userJson);
+
+            // Send to server for Anti-Spoofing + Registration
+            const res = await registerFace(email, deviceId, photo.base64);
+
+            if (res.success) {
+                setStage('done');
+            } else {
+                throw new Error(res.error || "Setup failed");
+            }
+        } catch (err: any) {
+            setErrorMsg(err.message || "Could not register face.");
             setStage('error');
-            setShowWebView(false);
+        } finally {
+            isCapturing.current = false;
         }
     };
 
-    const handleVerifyError = (message: string) => {
-        setShowWebView(false);
-        setErrorMsg(message);
-        setStage('error');
+    const startSetup = async () => {
+        if (!permission?.granted) {
+            const res = await requestPermission();
+            if (!res.granted) {
+                Alert.alert("Permission Denied", "Camera access is required for Face ID setup.");
+                return;
+            }
+        }
+        setStage('capture');
+        setBlinkCount(0);
     };
 
     const retry = () => {
-        setSelfieBase64(null);
-        setErrorMsg('');
         setStage('intro');
+        setErrorMsg('');
+        isCapturing.current = false;
     };
 
     const proceed = () => navigation.replace('StudentDashboard');
 
-    // ── Render ─────────────────────────────────────────────────────────────
-    return (
-        <ScrollView contentContainerStyle={styles.container}>
-            {/* Hidden WebView — only mounted when processing */}
-            {showWebView && selfieBase64 && (
-                <FaceVerifyWebView
-                    mode="setup"
-                    imageBase64={selfieBase64}
-                    onDescriptor={handleDescriptor}
-                    onResult={() => {}}
-                    onError={handleVerifyError}
-                />
-            )}
+    if (!permission) return <View style={styles.container}><ActivityIndicator /></View>;
 
-            {/* Icon */}
-            <View style={styles.iconCircle}>
-                <Text style={styles.icon}>🪪</Text>
+    return (
+        <View style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.title}>Face ID Enrollment</Text>
+                <Text style={styles.subtitle}>Secure Biometric Whitelisting</Text>
             </View>
 
-            <Text style={styles.title}>Face Verification Setup</Text>
+            {/* ── STAGE: INTRO ── */}
+            {stage === 'intro' && (
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.infoCard}>
+                        <Text style={styles.infoTitle}>Zero-Trust Enrollment</Text>
+                        <Text style={styles.infoText}>
+                            To prevent proxy attendance, we must verify your live identity. 
+                            This is a one-time process.
+                        </Text>
+                        
+                        <View style={styles.featureRow}>
+                            <Text style={styles.featureIcon}>👁️</Text>
+                            <View>
+                                <Text style={styles.featureTitle}>Blink Challenge</Text>
+                                <Text style={styles.featureSub}>Prevents photo-based spoofing</Text>
+                            </View>
+                        </View>
 
-            {/* ── INTRO ── */}
-            {(stage === 'intro' || stage === 'loading_models') && (
-                <>
-                    <Text style={styles.desc}>
-                        A.E.G.I.S uses face verification to prevent proxy attendance.
-                        {'\n\n'}
-                        We'll take one selfie and create a secure face profile on this device only.
-                        Your photo is <Text style={styles.accent}>never stored or uploaded</Text>.
-                    </Text>
-
-                    <View style={styles.bulletBox}>
-                        <Text style={styles.bullet}>✅  Only a mathematical fingerprint is saved</Text>
-                        <Text style={styles.bullet}>✅  Stays on your device in encrypted storage</Text>
-                        <Text style={styles.bullet}>✅  Cannot be reverse-engineered</Text>
-                        <Text style={styles.bullet}>✅  Takes about 10 seconds to set up</Text>
+                        <View style={styles.featureRow}>
+                            <Text style={styles.featureIcon}>🛡️</Text>
+                            <View>
+                                <Text style={styles.featureTitle}>ArcFace 6.0</Text>
+                                <Text style={styles.featureSub}>Military-grade facial encoding</Text>
+                            </View>
+                        </View>
                     </View>
 
-                    <Text style={styles.tip}>
-                        💡 Tip: Good lighting, face the camera directly, no glasses if possible.
-                    </Text>
-
-                    <TouchableOpacity style={styles.primaryBtn} onPress={takeSelfie} activeOpacity={0.8}>
-                        <Text style={styles.primaryBtnText}>📷  Take Setup Selfie</Text>
+                    <TouchableOpacity style={styles.startBtn} onPress={startSetup}>
+                        <Text style={styles.startBtnText}>Start Enrollment</Text>
                     </TouchableOpacity>
-                </>
+                </ScrollView>
             )}
 
-            {/* ── PROCESSING ── */}
+            {/* ── STAGE: CAPTURE ── */}
+            {stage === 'capture' && (
+                <View style={styles.cameraBox}>
+                    <CameraView
+                        ref={cameraRef}
+                        style={styles.camera}
+                        facing="front"
+                        onFacesDetected={onFacesDetected}
+                        faceDetectorSettings={{
+                            mode: FaceDetector.FaceDetectorMode.fast,
+                            detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
+                            runClassifications: FaceDetector.FaceDetectorClassifications.all,
+                            minDetectionInterval: 100,
+                            tracking: true,
+                        }}
+                    >
+                        <View style={styles.overlay}>
+                            <View style={styles.guideFrame} />
+                            <View style={styles.instructionBox}>
+                                <Text style={styles.instructionText}>
+                                    {blinkCount === 0 ? "Please BLINK naturally" : "Capturing..."}
+                                </Text>
+                                <Text style={styles.subInstruction}>
+                                    Keep face within the frame
+                                </Text>
+                            </View>
+                        </View>
+                    </CameraView>
+                </View>
+            )}
+
+            {/* ── STAGE: PROCESSING ── */}
             {stage === 'processing' && (
                 <View style={styles.centerBox}>
                     <ActivityIndicator size="large" color="#6366f1" />
-                    <Text style={styles.processingText}>Analysing face…</Text>
-                    <Text style={styles.processingNote}>
-                        Loading face recognition model (first time ~10 s, then instant).
-                    </Text>
+                    <Text style={styles.processingText}>Verifying Liveness...</Text>
+                    <Text style={styles.processingSub}>Analysing Moire & Laplacian Variance</Text>
                 </View>
             )}
 
-            {/* ── SUCCESS ── */}
+            {/* ── STAGE: DONE ── */}
             {stage === 'done' && (
                 <View style={styles.centerBox}>
-                    <Text style={styles.successIcon}>✅</Text>
-                    <Text style={styles.successTitle}>Face Profile Created!</Text>
-                    <Text style={styles.successDesc}>
-                        Your face profile is saved securely on this device.
-                        You're all set to mark attendance.
-                    </Text>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={proceed} activeOpacity={0.8}>
-                        <Text style={styles.primaryBtnText}>Continue to Dashboard →</Text>
+                    <View style={styles.successCircle}>
+                        <Text style={styles.successIcon}>✓</Text>
+                    </View>
+                    <Text style={styles.doneTitle}>Enrolled Successfully</Text>
+                    <Text style={styles.doneSub}>Your biometric fingerprint is now active.</Text>
+                    <TouchableOpacity style={styles.proceedBtn} onPress={proceed}>
+                        <Text style={styles.proceedBtnText}>Enter Dashboard</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
-            {/* ── ERROR ── */}
+            {/* ── STAGE: ERROR ── */}
             {stage === 'error' && (
                 <View style={styles.centerBox}>
                     <Text style={styles.errorIcon}>⚠️</Text>
-                    <Text style={styles.errorTitle}>Setup Failed</Text>
-                    <Text style={styles.errorDesc}>{errorMsg}</Text>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={retry} activeOpacity={0.8}>
-                        <Text style={styles.primaryBtnText}>↺  Try Again</Text>
+                    <Text style={styles.errorTitle}>Verification Failed</Text>
+                    <Text style={styles.errorText}>{errorMsg}</Text>
+                    <TouchableOpacity style={styles.retryBtn} onPress={retry}>
+                        <Text style={styles.retryBtnText}>Try Again</Text>
                     </TouchableOpacity>
                 </View>
             )}
-        </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container:       { flexGrow: 1, backgroundColor: '#0f172a', alignItems: 'center', padding: 28, paddingTop: 72, paddingBottom: 50 },
-    iconCircle:      { width: 90, height: 90, borderRadius: 45, backgroundColor: '#1e1b4b', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#6366f1', marginBottom: 24 },
-    icon:            { fontSize: 40 },
-    title:           { fontSize: 26, fontWeight: '800', color: '#f1f5f9', marginBottom: 16, textAlign: 'center' },
-    desc:            { fontSize: 15, color: '#94a3b8', textAlign: 'center', lineHeight: 24, marginBottom: 24 },
-    accent:          { color: '#22c55e', fontWeight: '700' },
-    bulletBox:       { width: '100%', backgroundColor: '#1e293b', borderRadius: 16, padding: 20, gap: 12, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
-    bullet:          { fontSize: 14, color: '#cbd5e1', fontWeight: '500' },
-    tip:             { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 32, fontStyle: 'italic' },
-    primaryBtn:      { width: '100%', backgroundColor: '#6366f1', paddingVertical: 16, borderRadius: 14, alignItems: 'center', shadowColor: '#6366f1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-    primaryBtnText:  { color: '#fff', fontSize: 17, fontWeight: '700' },
-    centerBox:       { alignItems: 'center', gap: 16, marginTop: 24, width: '100%' },
-    processingText:  { fontSize: 18, fontWeight: '700', color: '#f1f5f9', marginTop: 8 },
-    processingNote:  { fontSize: 13, color: '#64748b', textAlign: 'center', lineHeight: 20 },
-    successIcon:     { fontSize: 64 },
-    successTitle:    { fontSize: 22, fontWeight: '800', color: '#22c55e' },
-    successDesc:     { fontSize: 14, color: '#94a3b8', textAlign: 'center', lineHeight: 22 },
-    errorIcon:       { fontSize: 56 },
-    errorTitle:      { fontSize: 20, fontWeight: '800', color: '#ef4444' },
-    errorDesc:       { fontSize: 14, color: '#94a3b8', textAlign: 'center', lineHeight: 22, maxWidth: 280 },
+    container: { flex: 1, backgroundColor: '#020617', paddingHorizontal: 24 },
+    header: { marginTop: 60, marginBottom: 30, alignItems: 'center' },
+    title: { fontSize: 28, fontWeight: '900', color: '#f8fafc', letterSpacing: -1 },
+    subtitle: { fontSize: 14, color: '#6366f1', fontWeight: '700', textTransform: 'uppercase', marginTop: 4 },
+    scrollContent: { paddingBottom: 40 },
+    infoCard: { backgroundColor: '#0f172a', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#1e293b' },
+    infoTitle: { fontSize: 20, fontWeight: '800', color: '#f1f5f9', marginBottom: 12 },
+    infoText: { fontSize: 15, color: '#94a3b8', lineHeight: 24, marginBottom: 24 },
+    featureRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 16 },
+    featureIcon: { fontSize: 24, backgroundColor: '#1e1b4b', padding: 10, borderRadius: 12 },
+    featureTitle: { fontSize: 16, fontWeight: '700', color: '#e2e8f0' },
+    featureSub: { fontSize: 13, color: '#64748b' },
+    startBtn: { backgroundColor: '#6366f1', paddingVertical: 18, borderRadius: 16, marginTop: 30, alignItems: 'center' },
+    startBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+    cameraBox: { flex: 1, borderRadius: 30, overflow: 'hidden', marginBottom: 40, borderWeight: 2, borderColor: '#334155' },
+    camera: { flex: 1 },
+    overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(2, 6, 23, 0.4)' },
+    guideFrame: { width: width * 0.7, height: width * 0.7, borderRadius: width * 0.35, borderWeight: 4, borderColor: '#6366f1', borderStyle: 'dashed' },
+    instructionBox: { marginTop: 40, backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 20, borderRadius: 20, alignItems: 'center' },
+    instructionText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+    subInstruction: { color: '#94a3b8', fontSize: 13, marginTop: 4 },
+    centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 },
+    processingText: { fontSize: 22, fontWeight: '800', color: '#f1f5f9', marginTop: 24 },
+    processingSub: { fontSize: 14, color: '#6366f1', marginTop: 8 },
+    successCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+    successIcon: { fontSize: 40, color: '#fff' },
+    doneTitle: { fontSize: 24, fontWeight: '800', color: '#f1f5f9' },
+    doneSub: { fontSize: 15, color: '#94a3b8', marginTop: 8, textAlign: 'center' },
+    proceedBtn: { backgroundColor: '#22c55e', paddingHorizontal: 40, paddingVertical: 16, borderRadius: 16, marginTop: 32 },
+    proceedBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+    errorIcon: { fontSize: 60, marginBottom: 20 },
+    errorTitle: { fontSize: 22, fontWeight: '800', color: '#ef4444' },
+    errorText: { fontSize: 15, color: '#94a3b8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
+    retryBtn: { backgroundColor: '#1e293b', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 14, marginTop: 30 },
+    retryBtnText: { color: '#f1f5f9', fontWeight: '700' },
 });
+

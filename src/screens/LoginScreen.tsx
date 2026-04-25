@@ -33,13 +33,26 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             const result = await login(email.trim(), password);
             if (result.success) {
                 await saveUser(result.user);
-                navigation.replace('Home', {
-                    userName: result.user.name,
-                    userEmail: result.user.email,
-                    userCollege: result.user.college || '',
-                    userDepartment: result.user.department || '',
-                    userAllowedDomain: result.user.allowedDomain || '',
-                });
+                if (result.user.hasFaceProfile) {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{
+                            name: 'Home',
+                            params: {
+                                userName: result.user.name,
+                                userEmail: result.user.email,
+                                userCollege: result.user.college || '',
+                                userDepartment: result.user.department || '',
+                                userAllowedDomain: result.user.allowedDomain || '',
+                            }
+                        }],
+                    });
+                } else {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'FaceSetup' }],
+                    });
+                }
             } else {
                 Alert.alert('Login Failed', result.error || 'Invalid credentials');
             }

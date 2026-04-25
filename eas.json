@@ -1,18 +1,26 @@
 {
-    "cli": {
-        "version": ">= 3.0.0"
+  "cli": {
+    "version": ">= 3.0.0"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "preview",
+      "env": {
+        "APP_SECRET_KEY": "khAkWo95apemf6ErtXclh90xh+yJBEsPCcn3yuKpyFk="
+      }
     },
-    "build": {
-        "preview": {
-            "distribution": "internal",
-            "android": {
-                "buildType": "apk"
-            }
-        },
-        "production": {
-            "android": {
-                "buildType": "app-bundle"
-            }
-        }
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "channel": "production",
+      "env": {
+        "APP_SECRET_KEY": "khAkWo95apemf6ErtXclh90xh+yJBEsPCcn3yuKpyFk="
+      }
     }
+  }
 }

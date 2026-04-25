@@ -140,6 +140,10 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
             setDurationError('Enter a valid duration like 01.00 (HH.MM), e.g. 00.30 for 30 min.');
             return;
         }
+        if (ms < 10 * 60 * 1000) {
+            setDurationError('Session duration must be at least 10 minutes (00.10).');
+            return;
+        }
         setDurationModalVisible(false);
         await startAttendanceSession(ms);
     };
@@ -170,7 +174,18 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
             }
 
             try {
-                const result = await startSession(sessionLabel, latitude, longitude, userEmail);
+                const durationMins = Math.floor(durationMs / 60000);
+                const joinWindowMins = 10; // Default join window
+                const result = await startSession(
+                    sessionLabel, 
+                    latitude, 
+                    longitude, 
+                    userEmail,
+                    durationMins,
+                    80, // radius
+                    selectedCourse.courseId,
+                    joinWindowMins
+                );
                 if (result.error) { Alert.alert('Error', result.error); return; }
                 if (result.success) {
                     navigation.navigate('Session', {
@@ -178,6 +193,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                         formUrl:           result.formUrl,
                         sessionId:         result.sessionId,
                         sessionDurationMs: durationMs,
+                        joinWindowMs:      joinWindowMins * 60 * 1000,
                     });
                     setSelectedCourse(null);
                 }

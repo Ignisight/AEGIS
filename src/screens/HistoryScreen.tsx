@@ -25,6 +25,7 @@ interface SessionItem {
     createdAt: string;
     stoppedAt: string | null;
     active: boolean;
+    durationMs: number;
     responseCount: number;
 }
 
@@ -74,21 +75,21 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         });
     };
 
-    const formatDuration = (start: string, end: string | null, active: boolean) => {
+    const formatDuration = (start: string, end: string | null, active: boolean, durationMs: number) => {
         let endMs;
         if (end) {
             endMs = new Date(end).getTime();
         } else if (active) {
             endMs = now;
         } else {
-            endMs = new Date(start).getTime() + 10 * 60 * 1000; // 10m fallback for legacy
+            endMs = new Date(start).getTime() + durationMs; 
         }
 
         let ms = endMs - new Date(start).getTime();
 
-        // Cap the live active timer to EXACTLY 10 minutes if the user hasn't pulled to refresh yet
-        if (active && ms > 10 * 60 * 1000) {
-            ms = 10 * 60 * 1000;
+        // Cap the live active timer to EXACTLY durationMs if the user hasn't pulled to refresh yet
+        if (active && ms > durationMs) {
+            ms = durationMs;
         }
 
         const totalSec = Math.floor(ms / 1000);
@@ -321,12 +322,12 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     const renderItem = ({ item }: { item: SessionItem }) => {
         const isSelected = selected.has(item.id);
         const elapsedLocalMs = now - new Date(item.createdAt).getTime();
-        const isEffectivelyActive = item.active && elapsedLocalMs <= 10 * 60 * 1000;
+        const isEffectivelyActive = item.active && elapsedLocalMs <= item.durationMs;
 
         let displayStoppedAt = item.stoppedAt;
         if (!isEffectivelyActive && item.active && !item.stoppedAt) {
-            // It just crossed 10 mins locally but hasn't synced with server yet. Inject visually.
-            displayStoppedAt = new Date(new Date(item.createdAt).getTime() + 10 * 60 * 1000).toISOString();
+            // It just crossed duration locally but hasn't synced with server yet. Inject visually.
+            displayStoppedAt = new Date(new Date(item.createdAt).getTime() + item.durationMs).toISOString();
         }
 
         return (
@@ -382,7 +383,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                     </View>
                     <View style={[styles.chip, isEffectivelyActive && { backgroundColor: '#052e16', borderWidth: 1, borderColor: '#22c55e40' }]}>
                         <Text style={[styles.chipText, isEffectivelyActive && { color: '#4ade80' }]}>
-                            ⏱ {formatDuration(item.createdAt, displayStoppedAt, isEffectivelyActive)}
+                            ⏱ {formatDuration(item.createdAt, displayStoppedAt, isEffectivelyActive, item.durationMs)}
                         </Text>
                     </View>
                 </View>

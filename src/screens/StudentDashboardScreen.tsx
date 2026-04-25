@@ -167,15 +167,6 @@ export default function StudentDashboardScreen({ navigation }: any) {
                     <Text style={styles.scanDesc}>Tap to open your camera and scan the teacher's QR code displayed in class</Text>
                 </TouchableOpacity>
 
-                {/* Gallery Upload */}
-                <TouchableOpacity
-                    style={styles.galleryBtn}
-                    onPress={() => navigation.navigate('StudentScanner')}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.galleryBtnText}>🖼️  Or upload QR from Gallery</Text>
-                </TouchableOpacity>
-
                 {/* ===== MY COURSES & ATTENDANCE ===== */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>📊 My Attendance</Text>

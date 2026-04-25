@@ -6,6 +6,7 @@ import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
 import { FACE_DESCRIPTOR_KEY } from './FaceSetupScreen';
+import { getFaceConfig } from '../api';
 
 export default function StudentLoginScreen({ navigation }: any) {
     const [email, setEmail] = useState('');
@@ -20,12 +21,29 @@ export default function StudentLoginScreen({ navigation }: any) {
         try {
             const savedStudent = await AsyncStorage.getItem('student_user');
             if (savedStudent) {
-                // Check if face descriptor is set up
+                // Check if face descriptor is set up locally
                 const descriptor = await AsyncStorage.getItem(FACE_DESCRIPTOR_KEY);
                 if (descriptor) {
-                    navigation.replace('StudentDashboard');
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'StudentDashboard' }],
+                    });
                 } else {
-                    navigation.replace('FaceSetup');
+                    // Even if not local, check online as a safety
+                    const { email } = JSON.parse(savedStudent);
+                    const res = await getFaceConfig(email);
+                    if (res.success && res.descriptor) {
+                        await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(res.descriptor));
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'StudentDashboard' }],
+                        });
+                    } else {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'FaceSetup' }],
+                        });
+                    }
                 }
             }
         } catch (e) { }
@@ -69,14 +87,36 @@ export default function StudentLoginScreen({ navigation }: any) {
 
             const data = await response.json();
             if (data.success) {
+                const studentEmail = email.toLowerCase().trim();
                 await AsyncStorage.setItem('student_user', JSON.stringify({
-                    email:       email.toLowerCase().trim(),
+                    email:       studentEmail,
                     deviceId,
                     name:        data.name        || data.displayName || '',
                     displayName: data.displayName || data.name        || '',
                 }));
-                // Always go to FaceSetup first after a fresh login
-                navigation.replace('FaceSetup');
+
+                // CHECK SERVER FOR FACE CONFIG BEFORE NAVIGATING
+                if (data.faceVerificationEnabled) {
+                    const res = await getFaceConfig(studentEmail);
+                    if (res.success && res.descriptor) {
+                        // Sync to local and skip setup
+                        await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(res.descriptor));
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'StudentDashboard' }],
+                        });
+                    } else {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'FaceSetup' }],
+                        });
+                    }
+                } else {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'FaceSetup' }],
+                    });
+                }
             } else {
                 Alert.alert('Registration Failed', data.error || 'Failed to register device.');
             }

@@ -17,6 +17,9 @@ import StudentDashboardScreen from './src/screens/StudentDashboardScreen';
 import StudentScannerScreen from './src/screens/StudentScannerScreen';
 import FaceSetupScreen from './src/screens/FaceSetupScreen';
 
+import * as Updates from 'expo-updates';
+import { Alert } from 'react-native';
+
 const Stack = createNativeStackNavigator();
 
 const DarkTheme = {
@@ -32,6 +35,23 @@ const DarkTheme = {
 };
 
 export default function App() {
+    React.useEffect(() => {
+        async function onFetchUpdateAsync() {
+            try {
+                const update = await Updates.checkForUpdateAsync();
+                if (update.isAvailable) {
+                    await Updates.fetchUpdateAsync();
+                    await Updates.reloadAsync();
+                }
+            } catch (error) {
+                console.log(`Error fetching latest update: ${error}`);
+            }
+        }
+        if (!__DEV__) {
+            onFetchUpdateAsync();
+        }
+    }, []);
+
     return (
         <NavigationContainer theme={DarkTheme}>
             <StatusBar style="light" />

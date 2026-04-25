@@ -92,11 +92,26 @@ export const updateProfile = async (email: string, name: string, college: string
 // ATTENDANCE
 // ==========================================
 
-export async function startSession(sessionName: string, lat?: number, lon?: number, teacherEmail?: string) {
+export async function startSession(
+    sessionName: string, 
+    lat?: number, 
+    lon?: number, 
+    teacherEmail?: string,
+    durationMins?: number,
+    radiusMeters?: number,
+    courseId?: string,
+    joinWindowMins?: number
+) {
     const res = await fetch(`${SERVER_URL}/api/start-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-        body: JSON.stringify({ sessionName, lat, lon, teacherEmail }),
+        body: JSON.stringify({ 
+            sessionName, lat, lon, teacherEmail,
+            durationMins: durationMins || 60,
+            radiusMeters: radiusMeters || 80,
+            courseId,
+            joinWindowMins: joinWindowMins || 10
+        }),
     });
     return await res.json();
 }
@@ -105,7 +120,7 @@ export async function startSession(sessionName: string, lat?: number, lon?: numb
 export async function getTeacherCourses(teacherEmail: string) {
     try {
         const res = await fetch(
-            `${SERVER_URL}/api/teacher-courses?teacherEmail=${encodeURIComponent(teacherEmail)}`,
+            `${SERVER_URL}/api/teacher/my-courses?teacherEmail=${encodeURIComponent(teacherEmail)}`,
             { headers: APP_SECRET_HEADER }
         );
         return await res.json();
@@ -121,6 +136,33 @@ export async function getStudentCourses(email: string) {
             `${SERVER_URL}/api/student/courses?email=${encodeURIComponent(email)}`,
             { headers: APP_SECRET_HEADER }
         );
+        return await res.json();
+    } catch {
+        return { success: false, error: 'Network error' };
+    }
+}
+
+// Fetch face configuration (descriptor) from server
+export async function getFaceConfig(email: string) {
+    try {
+        const res = await fetch(
+            `${SERVER_URL}/api/student/face-config?email=${encodeURIComponent(email)}`,
+            { headers: APP_SECRET_HEADER }
+        );
+        return await res.json();
+    } catch {
+        return { success: false, error: 'Network error' };
+    }
+}
+
+// Sync face descriptor to server
+export async function syncFaceDescriptor(email: string, descriptor: number[]) {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/student/sync-face-descriptor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            body: JSON.stringify({ email, descriptor }),
+        });
         return await res.json();
     } catch {
         return { success: false, error: 'Network error' };
