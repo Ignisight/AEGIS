@@ -40,7 +40,8 @@ export default function StudentDashboardScreen({ navigation }: any) {
             if (saved) {
                 const parsed = JSON.parse(saved);
                 setStudent(parsed);
-                fetchCourses(parsed.email);
+                const normalizedEmail = (parsed.email || '').toLowerCase().trim();
+                fetchCourses(normalizedEmail);
             } else {
                 navigation.replace('StudentLogin');
             }
@@ -171,7 +172,7 @@ export default function StudentDashboardScreen({ navigation }: any) {
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>📊 My Attendance</Text>
                     <TouchableOpacity
-                        onPress={() => student && fetchCourses(student.email)}
+                        onPress={() => student && fetchCourses(student.email.toLowerCase().trim())}
                         style={styles.refreshBtn}
                         activeOpacity={0.7}
                     >
