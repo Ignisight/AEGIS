@@ -419,13 +419,15 @@ export default function StudentScannerScreen({ navigation }: any) {
                         <View style={styles.faceOverlay}>
                             <Text style={styles.faceGuideText}>{message}</Text>
                             <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
-                            {faceDetected && step === 'face-capture' && (
-                                <TouchableOpacity 
-                                    style={styles.captureBtn} 
-                                    onPress={captureMotionBurst}
-                                >
-                                    <View style={styles.captureBtnInner} />
-                                </TouchableOpacity>
+                            {step === 'face-capture' && (
+                                <View style={styles.bottomControls}>
+                                    <TouchableOpacity 
+                                        style={styles.captureBtn} 
+                                        onPress={captureMotionBurst}
+                                    >
+                                        <View style={styles.captureBtnInner} />
+                                    </TouchableOpacity>
+                                </View>
                             )}
                             <Text style={styles.faceTip}>Align face and tap the button to verify identity.</Text>
                         </View>
@@ -475,6 +477,13 @@ const styles = StyleSheet.create({
         height: 60,
         borderRadius: 30,
         backgroundColor: '#fff',
+    },
+    bottomControls: {
+        position: 'absolute',
+        bottom: 40,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
     },
     faceTip: { color: '#f1f5f9', fontSize: 14, textAlign: 'center', marginTop: 20, fontWeight: '600' },
     processingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', gap: 20 },

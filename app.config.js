@@ -14,7 +14,7 @@ module.exports = ({ config }) => {
     };
     
     // Switch to secondary if primary (default) hits EAS limits
-    const activeProject = PROJECTS.default; 
+    const activeProject = PROJECTS.secondary; 
 
     return {
         ...config,
