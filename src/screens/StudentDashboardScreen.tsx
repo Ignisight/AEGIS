@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Dimensions, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ScreenCapture from 'expo-screen-capture';
+import * as Device from 'expo-device';
 import { getStudentCourses } from '../api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,7 +34,26 @@ export default function StudentDashboardScreen({ navigation }: any) {
     const drawerAnim  = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const overlayAnim = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => { loadStudent(); }, []);
+    useEffect(() => { 
+        (async () => {
+            // 1. Device Integrity Check (No Emulators)
+            if (!Device.isDevice) {
+                Alert.alert("Security Breach", "A.E.G.I.S can only be used on physical mobile devices. Emulators are blocked.");
+                navigation.replace('RoleSelection');
+                return;
+            }
+
+            // 2. Prevent Screenshots & Screen Recording
+            await ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+            
+            loadStudent(); 
+        })();
+
+        return () => {
+            // Re-enable screen capture when leaving
+            ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+        };
+    }, []);
 
     const loadStudent = async () => {
         try {

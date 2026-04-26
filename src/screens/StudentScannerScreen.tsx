@@ -22,6 +22,8 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import * as Device from 'expo-device';
+import * as ScreenCapture from 'expo-screen-capture';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 import * as FaceDetector from 'expo-face-detector';
 
@@ -57,6 +59,9 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }: any) => {
     const location = locations[0];
     if (!location) return;
 
+    // ANTI-CHEAT: Check for Mock Locations (Fake GPS apps)
+    const isMocked = (location as any).mocked || location.coords.accuracy === 0;
+    
     try {
         const metaStr = await AsyncStorage.getItem(SESSION_META_KEY);
         if (!metaStr) {
@@ -64,6 +69,24 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }: any) => {
             return;
         }
         const meta = JSON.parse(metaStr);
+
+        if (isMocked) {
+            // Log security event to server
+            await fetch(`${meta.serverUrl}/api/student/location-event`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-app-secret': meta.appSecret },
+                body: JSON.stringify({
+                    email: meta.email,
+                    deviceId: meta.deviceId,
+                    sessionCode: meta.sessionCode,
+                    eventType: 'security_violation',
+                    details: 'Mock location detected in background.',
+                    lat: location.coords.latitude,
+                    lon: location.coords.longitude,
+                }),
+            }).catch(() => {});
+            return; // Don't process attendance if mocked
+        }
         if (Date.now() >= meta.expiresAt) {
             await Location.stopLocationUpdatesAsync(GEOFENCE_TASK).catch(() => {});
             await AsyncStorage.multiRemove([SESSION_META_KEY, LAST_STATUS_KEY]);
@@ -119,6 +142,16 @@ export default function StudentScannerScreen({ navigation }: any) {
 
     useEffect(() => {
         (async () => {
+            // 1. Device Integrity Check (No Emulators)
+            if (!Device.isDevice) {
+                Alert.alert("Security Breach", "A.E.G.I.S can only be used on physical mobile devices. Emulators are blocked.");
+                navigation.goBack();
+                return;
+            }
+
+            // 2. Prevent Screenshots & Screen Recording
+            await ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+
             const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
             const { status: fgStatus }  = await Location.requestForegroundPermissionsAsync();
             setHasPermission(camStatus === 'granted' && fgStatus === 'granted');
@@ -132,6 +165,11 @@ export default function StudentScannerScreen({ navigation }: any) {
                 navigation.replace('StudentLogin');
             }
         })();
+
+        return () => {
+            // Re-enable screen capture when leaving
+            ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+        };
     }, []);
 
     useEffect(() => {
@@ -272,7 +310,29 @@ export default function StudentScannerScreen({ navigation }: any) {
         try {
             setMessage('📍 Getting location...');
             const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-            if (location.mocked) { Alert.alert('Access Denied', 'GPS spoofing detected.'); resetToFace(); return; }
+            
+            if (location.mocked) { 
+                // Instant Server Alert
+                if (studentInfo) {
+                    await fetch(`${DEFAULT_SERVER_URL}/api/student/location-event`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                        body: JSON.stringify({
+                            email: studentInfo.email,
+                            deviceId: studentInfo.deviceId,
+                            sessionCode: pendingCode || 'unknown',
+                            eventType: 'security_violation',
+                            details: 'Mock location detected during submission.',
+                            lat: location.coords.latitude,
+                            lon: location.coords.longitude,
+                        }),
+                    }).catch(() => {});
+                }
+                Alert.alert('Access Denied', 'GPS spoofing detected. This violation has been logged.'); 
+                resetToFace(); 
+                return; 
+            }
+            
             setSavedLocation({ lat: location.coords.latitude, lon: location.coords.longitude });
             resetToScanning();
         } catch (err: any) {

@@ -11,8 +11,8 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { stopSession } from '../api';
-import ViewShot from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
+import * as ScreenCapture from 'expo-screen-capture';
+import * as Device from 'expo-device';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const QR_SIZE = Math.min(SCREEN_WIDTH - 64, 320);
@@ -37,10 +37,14 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const viewShotRef = useRef<any>(null);
 
-    // Keep screen awake
+    // Security: Screen Capture & Wake Lock
     useEffect(() => {
         activateKeepAwakeAsync('session');
-        return () => { deactivateKeepAwake('session'); };
+        ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+        return () => { 
+            deactivateKeepAwake('session');
+            ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+        };
     }, []);
 
     // Countdown timer (Absolute Time)
@@ -221,16 +225,14 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
             {/* QR Code */}
             <View style={styles.qrContainer}>
                 {isActive && isJoinActive ? (
-                    <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>
-                        <View style={styles.qrWrapper}>
-                            <QRCode
-                                value={formUrl}
-                                size={QR_SIZE}
-                                backgroundColor="#ffffff"
-                                color="#0f172a"
-                            />
-                        </View>
-                    </ViewShot>
+                    <View style={styles.qrWrapper}>
+                        <QRCode
+                            value={formUrl}
+                            size={QR_SIZE}
+                            backgroundColor="#ffffff"
+                            color="#0f172a"
+                        />
+                    </View>
                 ) : (
                     <View style={[styles.qrClosed, !isActive && { borderColor: '#ef4444' }]}>
                         <Text style={styles.qrClosedIcon}>{!isActive ? '⏹' : '🚫'}</Text>
