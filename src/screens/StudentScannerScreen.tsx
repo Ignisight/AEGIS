@@ -236,35 +236,33 @@ export default function StudentScannerScreen({ navigation }: any) {
         try {
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
-            setMessage('Recording... Hold still');
             
-            // Record a short video (1.5 seconds)
-            const videoPromise = cameraRef.current.recordAsync({
-                maxDuration: 2,
-            });
-            
-            // Stop recording after 1.5 seconds
-            setTimeout(() => {
-                if (cameraRef.current) {
-                    cameraRef.current.stopRecording();
+            // Photo burst — camera stays alive during capture
+            const burst: string[] = [];
+            for (let i = 0; i < 3; i++) {
+                setMessage(`Scanning: ${i + 1} of 3...`);
+                try {
+                    const photo = await cameraRef.current.takePictureAsync({
+                        quality: 0.3, 
+                        base64: true,
+                        exif: false,
+                    });
+                    if (photo && photo.base64) {
+                        burst.push(`data:image/jpeg;base64,${photo.base64}`);
+                    }
+                } catch (e) {
+                    // skip failed frame
                 }
-            }, 1500);
-            
-            const video = await videoPromise;
-            
+                await new Promise(r => setTimeout(r, 300));
+            }
+
             setStep('processing');
             setMessage('Analyzing identity...');
-            
-            if (!video || !video.uri) throw new Error('Video recording failed.');
-            
-            // Read video file as base64
-            const videoBase64 = await FileSystem.readAsStringAsync(video.uri, {
-                encoding: FileSystem.EncodingType.Base64,
-            });
-            
-            await handleFaceVerification(`data:video/mp4;base64,${videoBase64}`);
+
+            if (burst.length === 0) throw new Error("No frames captured. Please try again.");
+            await handleFaceVerification(burst);
         } catch (err: any) {
-            Alert.alert('Capture Error', err.message || 'Recording failed. Please try again.');
+            Alert.alert('Capture Error', err.message || 'Please try again.');
             resetToFace();
         }
     };
@@ -277,7 +275,7 @@ export default function StudentScannerScreen({ navigation }: any) {
         submitAttendance(match[1]);
     };
 
-    const handleFaceVerification = async (videoData: string) => {
+    const handleFaceVerification = async (images: string[]) => {
         if (!studentInfo) return;
         try {
             setMessage('Analyzing identity...');
@@ -287,7 +285,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                 body: JSON.stringify({ 
                     email: studentInfo.email, 
                     deviceId: studentInfo.deviceId, 
-                    video: videoData,
+                    image: images,
                     livenessVerified: true 
                 }),
             });
