@@ -158,6 +158,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             await ScreenCapture.preventScreenCaptureAsync().catch(() => {});
 
             const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
+            const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
             const { status: fgStatus }  = await Location.requestForegroundPermissionsAsync();
             setHasPermission(camStatus === 'granted' && fgStatus === 'granted');
 
