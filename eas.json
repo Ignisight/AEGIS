@@ -15,9 +15,8 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
-      "channel": "production",
       "env": {
         "APP_SECRET_KEY": "khAkWo95apemf6ErtXclh90xh+yJBEsPCcn3yuKpyFk="
       }

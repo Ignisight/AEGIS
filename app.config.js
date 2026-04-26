@@ -31,14 +31,6 @@ module.exports = ({ config }) => {
             },
             package: "com.attendance.system",
         },
-        runtimeVersion: {
-            policy: "appVersion",
-        },
-        updates: {
-            url: "https://u.expo.dev/8f17474b-1110-47b2-86ff-26ab0cb198d2",
-            checkAutomatically: "ON_LOAD",
-            fallbackToCacheTimeout: 10000, // Wait up to 10s for update before showing old content
-        },
         extra: {
             APP_SECRET_KEY: process.env.APP_SECRET_KEY || "MISSING_KEY",
             eas: {
