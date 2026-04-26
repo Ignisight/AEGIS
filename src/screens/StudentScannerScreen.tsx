@@ -240,9 +240,10 @@ export default function StudentScannerScreen({ navigation }: any) {
             setBlinkConfirmed(true);
             setMessage('Verifying...');
             
-            // Silent photo burst — no flash, no sound, no visual disruption
+            // Photo burst — camera stays alive, shows progress
             const burst: string[] = [];
             for (let i = 0; i < 3; i++) {
+                setMessage(`Scanning: ${i + 1} of 3...`);
                 try {
                     const photo = await cameraRef.current.takePictureAsync({
                         quality: 0.3, 
@@ -254,7 +255,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (e) {
-                    // skip failed frame silently
+                    // skip failed frame
                 }
                 await new Promise(r => setTimeout(r, 300));
             }
