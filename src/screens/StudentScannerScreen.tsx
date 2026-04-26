@@ -224,59 +224,38 @@ export default function StudentScannerScreen({ navigation }: any) {
 
         if (faces.length === 0) {
             setFaceDetected(false);
-            setMessage("No face detected");
+            setMessage("Looking for face...");
             return;
         }
 
         setFaceDetected(true);
-        const face = faces[0];
-        
-        const leftOpen = face.leftEyeOpenProbability;
-        const rightOpen = face.rightEyeOpenProbability;
-        const smileProb = face.smilingProbability;
-
-        // Guard: if values are undefined, skip this frame
-        if (leftOpen == null || rightOpen == null) return;
-
-        // 1. SMILE DETECTION (Very reliable alternative)
-        if (smileProb != null && smileProb > 0.7) {
-            setIsSmiling(true);
+        // AUTO-CAPTURE ON FACE DETECTION (Motion Burst)
+        if (!blinkConfirmedRef.current) {
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
-            setMessage("Smile detected! Capturing...");
-            captureSecureSelfie();
-            return;
-        }
-
-        // 2. BLINK DETECTION (Refined)
-        if (leftOpen < 0.4 && rightOpen < 0.4) {
-            if (!isBlinkingRef.current) {
-                isBlinkingRef.current = true;
-                setIsBlinking(true);
-                setMessage("Blink detected! Now open your eyes...");
-            }
-        } else if (isBlinkingRef.current && leftOpen > 0.5 && rightOpen > 0.5) {
-            isBlinkingRef.current = false;
-            blinkConfirmedRef.current = true;
-            setIsBlinking(false);
-            setBlinkConfirmed(true);
-            setMessage("Liveness verified! Capturing...");
-            captureSecureSelfie();
-        } else if (!isBlinkingRef.current) {
-            setMessage("Blink or Smile to verify identity");
+            captureSecureBurst();
         }
     };
 
-    const captureSecureSelfie = async () => {
+    const captureSecureBurst = async () => {
         if (!cameraRef.current) return;
         try {
-            const photo = await cameraRef.current.takePictureAsync({
-                quality: 0.5,
-                base64: true,
-                exif: false,
-            });
             setStep('processing');
-            await handleFaceVerification(`data:image/jpeg;base64,${photo.base64}`);
+            setMessage('Recording motion...');
+            
+            const burst: string[] = [];
+            for (let i = 0; i < 3; i++) {
+                const photo = await cameraRef.current.takePictureAsync({
+                    quality: 0.3,
+                    base64: true,
+                    exif: false,
+                });
+                burst.push(`data:image/jpeg;base64,${photo.base64}`);
+                // Small delay between frames to capture micro-movement
+                if (i < 2) await new Promise(r => setTimeout(r, 250));
+            }
+
+            await handleFaceVerification(burst);
         } catch (err: any) {
             Alert.alert('Capture Error', err.message);
             resetToFace();
@@ -291,18 +270,18 @@ export default function StudentScannerScreen({ navigation }: any) {
         submitAttendance(match[1]);
     };
 
-    const handleFaceVerification = async (b64Image: string) => {
+    const handleFaceVerification = async (burst: string[]) => {
         if (!studentInfo) return;
         try {
-            setMessage('Verifying identity...');
+            setMessage('Analyzing motion & identity...');
             const verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                 body: JSON.stringify({ 
                     email: studentInfo.email, 
                     deviceId: studentInfo.deviceId, 
-                    image: b64Image,
-                    livenessVerified: true // Signal to server that app checked for blink
+                    image: burst, // Send burst array
+                    livenessVerified: true 
                 }),
             });
             const verifyData = await verifyRes.json();
