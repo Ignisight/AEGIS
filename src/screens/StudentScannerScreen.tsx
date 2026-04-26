@@ -237,13 +237,16 @@ export default function StudentScannerScreen({ navigation }: any) {
             setBlinkConfirmed(true);
             
             const burst: string[] = [];
-            const frameCount = 5; // Reduced from 8 for stability
+            const targetCount = 8;
+            let attempts = 0;
+            const maxAttempts = 20; // Safety limit
             
-            for (let i = 0; i < frameCount; i++) {
+            while (burst.length < targetCount && attempts < maxAttempts) {
+                attempts++;
                 try {
-                    setMessage(`Capturing Motion: ${Math.round((i/frameCount)*100)}%`);
+                    setMessage(`Capturing Identity: ${Math.round((burst.length / targetCount) * 100)}%`);
                     const photo = await cameraRef.current.takePictureAsync({
-                        quality: 0.5, 
+                        quality: 0.4, 
                         base64: true,
                         exif: false,
                     });
@@ -251,16 +254,17 @@ export default function StudentScannerScreen({ navigation }: any) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (frameErr) {
-                    console.warn(`Frame ${i} failed, skipping...`, frameErr);
+                    // If hardware is busy, wait a bit longer before retry
+                    await new Promise(r => setTimeout(r, 300));
                 }
-                // Increased delay to give camera time to reset
-                await new Promise(r => setTimeout(r, 300));
+                // Standard delay between frames
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            if (burst.length === 0) throw new Error("Could not capture any frames. Check camera permissions.");
+            if (burst.length < 4) throw new Error("Could not capture enough frames. Please try again.");
             await handleFaceVerification(burst);
         } catch (err: any) {
-            Alert.alert('Capture Error', "Camera was busy. Please wait a second and try again.");
+            Alert.alert('Capture Error', err.message || "Camera was busy. Please try again.");
             resetToFace();
         }
     };
