@@ -230,7 +230,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const captureMotionBurst = async () => {
-        if (!cameraRef.current || !faceDetected) return;
+        if (!cameraRef.current) return;
         try {
             setStep('processing');
             blinkConfirmedRef.current = true;
