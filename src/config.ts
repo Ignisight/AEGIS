@@ -17,6 +17,9 @@ export const DEFAULT_SERVER_URL = 'https://aegis-server-02y5.onrender.com'; // â
 export const APP_SECRET_KEY = Constants.expoConfig?.extra?.APP_SECRET_KEY || '';
 export const APP_SECRET_HEADER = { 'x-app-secret': APP_SECRET_KEY };
 
+// Persistence Keys
+export const FACE_DESCRIPTOR_KEY = 'aegis_face_descriptor';
+
 // @deprecated â€” Session duration is now set by the teacher in the HomeScreen
 // duration modal (HH.MM format) and passed via route.params.sessionDurationMs.
 // This constant is no longer used by SessionScreen and will be removed in a future cleanup.

@@ -142,6 +142,20 @@ export async function getStudentCourses(email: string) {
     }
 }
 
+// Register face with Anti-Spoofing
+export async function registerFace(email: string, deviceId: string, image: string) {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/student/register-face`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            body: JSON.stringify({ email, deviceId, image }),
+        });
+        return await res.json();
+    } catch {
+        return { success: false, error: 'Network error during face registration' };
+    }
+}
+
 // Fetch face configuration (descriptor) from server
 export async function getFaceConfig(email: string) {
     try {

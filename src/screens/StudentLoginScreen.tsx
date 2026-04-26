@@ -4,8 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
-import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from '../config';
-import { FACE_DESCRIPTOR_KEY } from './FaceSetupScreen';
+import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, FACE_DESCRIPTOR_KEY } from '../config';
 import { getFaceConfig } from '../api';
 
 export default function StudentLoginScreen({ navigation }: any) {
@@ -66,7 +65,7 @@ export default function StudentLoginScreen({ navigation }: any) {
         try {
             let hardwareId = 'unknown-device';
             if (Platform.OS === 'android') {
-                hardwareId = Application.getAndroidId() || 'android-fallback';
+                hardwareId = (await Application.getAndroidId()) || 'android-fallback';
             } else if (Platform.OS === 'ios') {
                 const iosId = await Application.getIosIdForVendorAsync();
                 hardwareId = iosId || 'ios-fallback';

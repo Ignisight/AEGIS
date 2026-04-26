@@ -12,6 +12,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FACE_DESCRIPTOR_KEY } from '../config';
 import { registerFace } from '../api';
 
 const { width } = Dimensions.get('window');
