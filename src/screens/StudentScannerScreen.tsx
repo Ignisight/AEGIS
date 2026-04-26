@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 import * as ScreenCapture from 'expo-screen-capture';
+import * as FileSystem from 'expo-file-system';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 import * as FaceDetector from 'expo-face-detector';
 
@@ -232,42 +233,37 @@ export default function StudentScannerScreen({ navigation }: any) {
     const captureMotionBurst = async () => {
         if (!cameraRef.current) return;
         try {
-            // DO NOT setStep('processing') here — camera must stay alive!
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
+            setMessage('Recording... Hold still');
             
-            const burst: string[] = [];
-            const targetCount = 3;
-            let attempts = 0;
-            const maxAttempts = 10;
+            // Record a short video (1.5 seconds)
+            const videoPromise = cameraRef.current.recordAsync({
+                maxDuration: 2,
+            });
             
-            while (burst.length < targetCount && attempts < maxAttempts) {
-                attempts++;
-                try {
-                    setMessage(`Identity Scan: ${burst.length + 1} of ${targetCount}...`);
-                    const photo = await cameraRef.current.takePictureAsync({
-                        quality: 0.3, 
-                        base64: true,
-                        exif: false,
-                    });
-                    if (photo && photo.base64) {
-                        burst.push(`data:image/jpeg;base64,${photo.base64}`);
-                    }
-                } catch (frameErr) {
-                    await new Promise(r => setTimeout(r, 500));
+            // Stop recording after 1.5 seconds
+            setTimeout(() => {
+                if (cameraRef.current) {
+                    cameraRef.current.stopRecording();
                 }
-                // Stable delay between frames
-                await new Promise(r => setTimeout(r, 300));
-            }
-
-            // NOW switch to processing (camera can go away)
+            }, 1500);
+            
+            const video = await videoPromise;
+            
             setStep('processing');
             setMessage('Analyzing identity...');
-
-            if (burst.length < 2) throw new Error("Camera could not capture. Please check permissions and try again.");
-            await handleFaceVerification(burst);
+            
+            if (!video || !video.uri) throw new Error('Video recording failed.');
+            
+            // Read video file as base64
+            const videoBase64 = await FileSystem.readAsStringAsync(video.uri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+            
+            await handleFaceVerification(`data:video/mp4;base64,${videoBase64}`);
         } catch (err: any) {
-            Alert.alert('Capture Error', err.message || "Camera was busy. Please try again.");
+            Alert.alert('Capture Error', err.message || 'Recording failed. Please try again.');
             resetToFace();
         }
     };
@@ -280,17 +276,17 @@ export default function StudentScannerScreen({ navigation }: any) {
         submitAttendance(match[1]);
     };
 
-    const handleFaceVerification = async (burst: string[]) => {
+    const handleFaceVerification = async (videoData: string) => {
         if (!studentInfo) return;
         try {
-            setMessage('Analyzing motion & identity...');
+            setMessage('Analyzing identity...');
             const verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                 body: JSON.stringify({ 
                     email: studentInfo.email, 
                     deviceId: studentInfo.deviceId, 
-                    image: burst, // Send burst array
+                    video: videoData,
                     livenessVerified: true 
                 }),
             });
