@@ -132,10 +132,11 @@ export default function StudentScannerScreen({ navigation }: any) {
 
     // ── Liveness Detection State ───────────────────────────────────────────
     const isBlinkingRef = useRef(false);
-    const [isBlinking, setIsBlinking] = useState(false); // UI display only
+    const [isBlinking, setIsBlinking] = useState(false); 
     const blinkConfirmedRef = useRef(false);
     const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
+    const [isSmiling, setIsSmiling] = useState(false);
     // Manual capture removed — blink is the ONLY way (anti-proxy security)
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
@@ -232,19 +233,29 @@ export default function StudentScannerScreen({ navigation }: any) {
         
         const leftOpen = face.leftEyeOpenProbability;
         const rightOpen = face.rightEyeOpenProbability;
+        const smileProb = face.smilingProbability;
 
         // Guard: if values are undefined, skip this frame
         if (leftOpen == null || rightOpen == null) return;
 
+        // 1. SMILE DETECTION (Very reliable alternative)
+        if (smileProb != null && smileProb > 0.7) {
+            setIsSmiling(true);
+            blinkConfirmedRef.current = true;
+            setBlinkConfirmed(true);
+            setMessage("Smile detected! Capturing...");
+            captureSecureSelfie();
+            return;
+        }
+
+        // 2. BLINK DETECTION (Refined)
         if (leftOpen < 0.4 && rightOpen < 0.4) {
-            // Eyes closed — mark blink started
             if (!isBlinkingRef.current) {
                 isBlinkingRef.current = true;
                 setIsBlinking(true);
                 setMessage("Blink detected! Now open your eyes...");
             }
         } else if (isBlinkingRef.current && leftOpen > 0.5 && rightOpen > 0.5) {
-            // Eyes re-opened after close — blink complete!
             isBlinkingRef.current = false;
             blinkConfirmedRef.current = true;
             setIsBlinking(false);
@@ -252,7 +263,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             setMessage("Liveness verified! Capturing...");
             captureSecureSelfie();
         } else if (!isBlinkingRef.current) {
-            setMessage("Blink naturally to verify identity");
+            setMessage("Blink or Smile to verify identity");
         }
     };
 
@@ -423,7 +434,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                         facing="front"
                         onFacesDetected={onFacesDetected}
                         faceDetectorSettings={{
-                            mode: FaceDetector.FaceDetectorMode.fast,
+                            mode: FaceDetector.FaceDetectorMode.accurate,
                             detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
                             runClassifications: FaceDetector.FaceDetectorClassifications.all,
                             minDetectionInterval: 50,
@@ -432,9 +443,9 @@ export default function StudentScannerScreen({ navigation }: any) {
                     >
                         <View style={styles.faceOverlay}>
                             <Text style={styles.faceGuideText}>{message}</Text>
-                            <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
-                            {isBlinking && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
-                            <Text style={styles.faceTip}>Place your face in the circle and blink naturally.</Text>
+                             <View style={[styles.faceCircle, (faceDetected || isSmiling) && {borderColor: '#22c55e'}]} />
+                            {(isBlinking || isSmiling) && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
+                            <Text style={styles.faceTip}>Place your face in the circle and Blink or Smile.</Text>
                         </View>
                     </CameraView>
                 )}
