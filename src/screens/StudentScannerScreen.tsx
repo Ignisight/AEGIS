@@ -221,38 +221,34 @@ export default function StudentScannerScreen({ navigation }: any) {
 
     const onFacesDetected = async ({ faces }: any) => {
         if (step !== 'face-capture' || blinkConfirmedRef.current) return;
-
-        if (faces.length === 0) {
-            setFaceDetected(false);
+        setFaceDetected(faces.length > 0);
+        if (faces.length > 0) {
+            setMessage("Face aligned. Tap the button to verify.");
+        } else {
             setMessage("Looking for face...");
-            return;
-        }
-
-        setFaceDetected(true);
-        // AUTO-CAPTURE ON FACE DETECTION (Motion Burst)
-        if (!blinkConfirmedRef.current) {
-            blinkConfirmedRef.current = true;
-            setBlinkConfirmed(true);
-            captureSecureBurst();
         }
     };
 
-    const captureSecureBurst = async () => {
-        if (!cameraRef.current) return;
+    const captureMotionBurst = async () => {
+        if (!cameraRef.current || !faceDetected) return;
         try {
             setStep('processing');
-            setMessage('Recording motion...');
+            blinkConfirmedRef.current = true;
+            setBlinkConfirmed(true);
             
             const burst: string[] = [];
-            for (let i = 0; i < 3; i++) {
+            const frameCount = 8;
+            
+            for (let i = 0; i < frameCount; i++) {
+                setMessage(`Recording Motion: ${Math.round((i/frameCount)*100)}%`);
                 const photo = await cameraRef.current.takePictureAsync({
-                    quality: 0.3,
+                    quality: 0.2, // Lower quality for burst to save bandwidth
                     base64: true,
                     exif: false,
                 });
                 burst.push(`data:image/jpeg;base64,${photo.base64}`);
-                // Small delay between frames to capture micro-movement
-                if (i < 2) await new Promise(r => setTimeout(r, 250));
+                // Small delay to capture natural movement/blinking
+                await new Promise(r => setTimeout(r, 150));
             }
 
             await handleFaceVerification(burst);
@@ -422,9 +418,16 @@ export default function StudentScannerScreen({ navigation }: any) {
                     >
                         <View style={styles.faceOverlay}>
                             <Text style={styles.faceGuideText}>{message}</Text>
-                             <View style={[styles.faceCircle, (faceDetected || isSmiling) && {borderColor: '#22c55e'}]} />
-                            {(isBlinking || isSmiling) && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
-                            <Text style={styles.faceTip}>Place your face in the circle and Blink or Smile.</Text>
+                            <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
+                            {faceDetected && step === 'face-capture' && (
+                                <TouchableOpacity 
+                                    style={styles.captureBtn} 
+                                    onPress={captureMotionBurst}
+                                >
+                                    <View style={styles.captureBtnInner} />
+                                </TouchableOpacity>
+                            )}
+                            <Text style={styles.faceTip}>Align face and tap the button to verify identity.</Text>
                         </View>
                     </CameraView>
                 )}
@@ -456,7 +459,24 @@ const styles = StyleSheet.create({
     faceOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 32 },
     faceGuideText: { color: '#f1f5f9', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 40, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 4 },
     faceCircle: { width: 260, height: 260, borderRadius: 130, borderWidth: 4, borderColor: '#6366f1', borderStyle: 'dashed' },
-    faceTip: { color: '#f1f5f9', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: '600' },
+    captureBtn: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderWidth: 4,
+        borderColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 40,
+    },
+    captureBtnInner: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#fff',
+    },
+    faceTip: { color: '#f1f5f9', fontSize: 14, textAlign: 'center', marginTop: 20, fontWeight: '600' },
     processingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', gap: 20 },
     processingText: { color: '#f1f5f9', fontSize: 16, fontWeight: '600', textAlign: 'center', paddingHorizontal: 32 },
     footer: { padding: 24, backgroundColor: '#0f172a', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#1e293b' },
