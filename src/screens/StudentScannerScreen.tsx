@@ -237,23 +237,30 @@ export default function StudentScannerScreen({ navigation }: any) {
             setBlinkConfirmed(true);
             
             const burst: string[] = [];
-            const frameCount = 8;
+            const frameCount = 5; // Reduced from 8 for stability
             
             for (let i = 0; i < frameCount; i++) {
-                setMessage(`Recording Motion: ${Math.round((i/frameCount)*100)}%`);
-                const photo = await cameraRef.current.takePictureAsync({
-                    quality: 0.2, // Lower quality for burst to save bandwidth
-                    base64: true,
-                    exif: false,
-                });
-                burst.push(`data:image/jpeg;base64,${photo.base64}`);
-                // Small delay to capture natural movement/blinking
-                await new Promise(r => setTimeout(r, 150));
+                try {
+                    setMessage(`Capturing Motion: ${Math.round((i/frameCount)*100)}%`);
+                    const photo = await cameraRef.current.takePictureAsync({
+                        quality: 0.5, 
+                        base64: true,
+                        exif: false,
+                    });
+                    if (photo && photo.base64) {
+                        burst.push(`data:image/jpeg;base64,${photo.base64}`);
+                    }
+                } catch (frameErr) {
+                    console.warn(`Frame ${i} failed, skipping...`, frameErr);
+                }
+                // Increased delay to give camera time to reset
+                await new Promise(r => setTimeout(r, 300));
             }
 
+            if (burst.length === 0) throw new Error("Could not capture any frames. Check camera permissions.");
             await handleFaceVerification(burst);
         } catch (err: any) {
-            Alert.alert('Capture Error', err.message);
+            Alert.alert('Capture Error', "Camera was busy. Please wait a second and try again.");
             resetToFace();
         }
     };
