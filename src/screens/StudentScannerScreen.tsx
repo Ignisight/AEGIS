@@ -232,21 +232,21 @@ export default function StudentScannerScreen({ navigation }: any) {
     const captureMotionBurst = async () => {
         if (!cameraRef.current) return;
         try {
-            setStep('processing');
+            // DO NOT setStep('processing') here — camera must stay alive!
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
             
             const burst: string[] = [];
-            const targetCount = 8;
+            const targetCount = 3;
             let attempts = 0;
-            const maxAttempts = 30; // Increased limit for high-speed retries
+            const maxAttempts = 10;
             
             while (burst.length < targetCount && attempts < maxAttempts) {
                 attempts++;
                 try {
-                    setMessage(`Capturing Identity: ${Math.round((burst.length / targetCount) * 100)}%`);
+                    setMessage(`Identity Scan: ${burst.length + 1} of ${targetCount}...`);
                     const photo = await cameraRef.current.takePictureAsync({
-                        quality: 0.4, 
+                        quality: 0.3, 
                         base64: true,
                         exif: false,
                     });
@@ -254,11 +254,17 @@ export default function StudentScannerScreen({ navigation }: any) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (frameErr) {
-                    // Hardware is busy, retry instantly
+                    await new Promise(r => setTimeout(r, 500));
                 }
+                // Stable delay between frames
+                await new Promise(r => setTimeout(r, 300));
             }
 
-            if (burst.length < 4) throw new Error("Could not capture enough frames. Please try again.");
+            // NOW switch to processing (camera can go away)
+            setStep('processing');
+            setMessage('Analyzing identity...');
+
+            if (burst.length < 2) throw new Error("Camera could not capture. Please check permissions and try again.");
             await handleFaceVerification(burst);
         } catch (err: any) {
             Alert.alert('Capture Error', err.message || "Camera was busy. Please try again.");
