@@ -204,20 +204,37 @@ export default function StudentDashboardScreen({ navigation }: any) {
                             return (
                                 <View key={c.courseId} style={[styles.courseCard, warn && styles.courseCardWarn]}>
                                     <View style={styles.courseCardLeft}>
-                                        <Text style={styles.courseCode}>{c.courseId}</Text>
+                                        <View style={styles.courseHeaderRow}>
+                                            <Text style={styles.courseCode}>{c.courseId}</Text>
+                                            {c.totalSessions > 0 && (
+                                                <View style={styles.sessionBadge}>
+                                                    <Text style={styles.sessionBadgeText}>{c.totalSessions} Sessions</Text>
+                                                </View>
+                                            )}
+                                        </View>
                                         <Text style={styles.courseNameText} numberOfLines={2}>{c.courseName}</Text>
-                                        {c.semester ? <Text style={styles.courseMeta}>Semester {c.semester}{c.department ? ' · ' + c.department : ''}</Text> : null}
-                                        <Text style={styles.courseAttendedText}>
-                                            {c.totalSessions > 0
-                                                ? `${c.attended} / ${c.totalSessions} classes attended`
-                                                : 'No sessions recorded yet'}
-                                        </Text>
+                                        
+                                        <View style={styles.statsRow}>
+                                            <View style={styles.statItem}>
+                                                <Text style={styles.statLabel}>Attended</Text>
+                                                <Text style={styles.statValue}>{c.attended}</Text>
+                                            </View>
+                                            <View style={styles.statDivider} />
+                                            <View style={styles.statItem}>
+                                                <Text style={styles.statLabel}>Requirement</Text>
+                                                <Text style={styles.statValue}>75%</Text>
+                                            </View>
+                                        </View>
                                     </View>
-                                    <View style={[styles.percentageBadge, { borderColor: color + '40', backgroundColor: color + '15' }]}>
-                                        <Text style={[styles.percentageNumber, { color }]}>
-                                            {pct !== null ? `${pct}%` : '—'}
-                                        </Text>
-                                        {warn && <Text style={styles.warnIcon}>⚠️</Text>}
+                                    
+                                    <View style={styles.courseCardRight}>
+                                        <View style={[styles.percentageCircle, { borderColor: color + '30' }]}>
+                                            <Text style={[styles.percentageNumber, { color }]}>
+                                                {pct !== null ? `${pct}%` : '—'}
+                                            </Text>
+                                            <Text style={styles.percentageLabel}>Attendance</Text>
+                                        </View>
+                                        {warn && <View style={styles.miniWarn}><Text style={styles.miniWarnText}>⚠️ Low</Text></View>}
                                     </View>
                                 </View>
                             );
@@ -322,17 +339,30 @@ const styles = StyleSheet.create({
     courseEmptyText: { fontSize: 15, fontWeight: '700', color: '#94a3b8' },
 
     coursesList:        { paddingHorizontal: 24, gap: 12 },
-    courseCard:         { backgroundColor: '#1e293b', borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#334155', gap: 16 },
-    courseCardWarn:     { borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.04)' },
-    courseCardLeft:     { flex: 1 },
-    courseCode:         { fontSize: 14, fontWeight: '800', color: '#818cf8', marginBottom: 3 },
-    courseNameText:     { fontSize: 15, fontWeight: '700', color: '#f1f5f9', marginBottom: 4, lineHeight: 20 },
-    courseMeta:         { fontSize: 11, color: '#475569', fontWeight: '600', marginBottom: 6 },
-    courseAttendedText: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+    courseCard:         { backgroundColor: '#1e293b', borderRadius: 24, padding: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#334155', marginBottom: 4 },
+    courseCardWarn:     { borderColor: 'rgba(239,68,68,0.3)', backgroundColor: '#1e293b' },
+    courseCardLeft:     { flex: 1, gap: 8 },
+    courseCardRight:    { alignItems: 'center', marginLeft: 16 },
+    
+    courseHeaderRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    sessionBadge:       { backgroundColor: '#334155', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+    sessionBadgeText:   { color: '#94a3b8', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
 
-    percentageBadge:  { width: 68, height: 68, borderRadius: 34, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-    percentageNumber: { fontSize: 18, fontWeight: '800' },
-    warnIcon:         { fontSize: 12, marginTop: 2 },
+    courseCode:         { color: '#6366f1', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+    courseNameText:     { color: '#f1f5f9', fontSize: 16, fontWeight: '700', lineHeight: 22 },
+    
+    statsRow:           { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 12 },
+    statItem:           { gap: 2 },
+    statLabel:          { color: '#64748b', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+    statValue:          { color: '#cbd5e1', fontSize: 13, fontWeight: '800' },
+    statDivider:        { width: 1, height: 16, backgroundColor: '#334155' },
+
+    percentageCircle:   { width: 70, height: 70, borderRadius: 35, borderWidth: 3, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
+    percentageNumber:   { fontSize: 18, fontWeight: '900' },
+    percentageLabel:    { fontSize: 8, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginTop: -2 },
+
+    miniWarn:           { backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: -10 },
+    miniWarnText:       { color: 'white', fontSize: 8, fontWeight: '900' },
 
     warnBanner:     { marginTop: 8, padding: 14, backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' },
     warnBannerText: { color: '#fca5a5', fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 18 },
