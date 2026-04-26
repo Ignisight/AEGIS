@@ -20,30 +20,11 @@ export default function StudentLoginScreen({ navigation }: any) {
         try {
             const savedStudent = await AsyncStorage.getItem('student_user');
             if (savedStudent) {
-                // Check if face descriptor is set up locally
-                const descriptor = await AsyncStorage.getItem(FACE_DESCRIPTOR_KEY);
-                if (descriptor) {
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'StudentDashboard' }],
-                    });
-                } else {
-                    // Even if not local, check online as a safety
-                    const { email } = JSON.parse(savedStudent);
-                    const res = await getFaceConfig(email);
-                    if (res.success && res.descriptor) {
-                        await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(res.descriptor));
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: 'StudentDashboard' }],
-                        });
-                    } else {
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: 'FaceSetup' }],
-                        });
-                    }
-                }
+                // If they have a session, go to dashboard. Face will be handled by scanner.
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'StudentDashboard' }],
+                });
             }
         } catch (e) { }
         finally { setChecking(false); }
@@ -94,28 +75,16 @@ export default function StudentLoginScreen({ navigation }: any) {
                     displayName: data.displayName || data.name        || '',
                 }));
 
-                // CHECK SERVER FOR FACE CONFIG BEFORE NAVIGATING
-                if (data.faceVerificationEnabled) {
-                    const res = await getFaceConfig(studentEmail);
-                    if (res.success && res.descriptor) {
-                        // Sync to local and skip setup
-                        await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(res.descriptor));
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: 'StudentDashboard' }],
-                        });
-                    } else {
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: 'FaceSetup' }],
-                        });
-                    }
-                } else {
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'FaceSetup' }],
-                    });
+                // Sync face config if available but don't block navigation
+                const res = await getFaceConfig(studentEmail).catch(() => ({ success: false }));
+                if (res.success && res.descriptor) {
+                    await AsyncStorage.setItem(FACE_DESCRIPTOR_KEY, JSON.stringify(res.descriptor));
                 }
+
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'StudentDashboard' }],
+                });
             } else {
                 Alert.alert('Registration Failed', data.error || 'Failed to register device.');
             }

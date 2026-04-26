@@ -134,6 +134,8 @@ export default function StudentScannerScreen({ navigation }: any) {
     const [isBlinking, setIsBlinking] = useState(false);
     const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
+    const [showFallback, setShowFallback] = useState(false);
+    const fallbackTimer = useRef<NodeJS.Timeout | null>(null);
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
     const studentInfoRef = useRef<{ email: string; deviceId: string } | null>(null);
@@ -164,6 +166,10 @@ export default function StudentScannerScreen({ navigation }: any) {
             } else {
                 navigation.replace('StudentLogin');
             }
+
+            // Start fallback timer
+            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+            fallbackTimer.current = setTimeout(() => setShowFallback(true), 6000);
         })();
 
         return () => {
@@ -225,21 +231,22 @@ export default function StudentScannerScreen({ navigation }: any) {
         setFaceDetected(true);
         const face = faces[0];
         
-        // Blink logic: Both eyes must be closed (<0.2) then opened (>0.7)
+        // Super Forgiving Blink Logic: closed (<0.4) then opened (>0.5)
         const leftOpen = face.leftEyeOpenProbability;
         const rightOpen = face.rightEyeOpenProbability;
 
-        if (leftOpen < 0.2 && rightOpen < 0.2) {
+        if (leftOpen < 0.4 && rightOpen < 0.4) {
             setIsBlinking(true);
-            setMessage("Blink detected! Keep still...");
-        } else if (isBlinking && leftOpen > 0.7 && rightOpen > 0.7) {
+            setMessage("Blink detected! Now open your eyes...");
+        } else if (isBlinking && leftOpen > 0.5 && rightOpen > 0.5) {
             // Blink complete! Auto-capture
             setIsBlinking(false);
             setBlinkConfirmed(true);
+            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
             setMessage("Liveness verified! Capturing...");
             captureSecureSelfie();
         } else if (!isBlinking) {
-            setMessage("Blink your eyes to verify liveness");
+            setMessage("Blink naturally to verify identity");
         }
     };
 
@@ -283,23 +290,15 @@ export default function StudentScannerScreen({ navigation }: any) {
             });
             const verifyData = await verifyRes.json();
 
-            if (verifyData.needsRegistration) {
-                setMessage('First time setup — registering face...');
-                const regRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/register-face`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-                    body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, image: b64Image }),
-                });
-                const regData = await regRes.json();
-                if (!regData.success) { Alert.alert('Registration Failed', regData.error, [{ text: 'OK', onPress: resetToFace }]); return; }
-                
-                await getLocationAndProceed();
-                return;
-            }
-
             if (!verifyData.success || !verifyData.verified) {
                 Alert.alert('❌ Identity Failed', verifyData.error || 'Face mismatch.', [{ text: 'OK', onPress: resetToFace }]);
                 return;
+            }
+            
+            if (verifyData.wasRegistration) {
+                setMessage('Face enrolled successfully!');
+            } else {
+                setMessage('Identity verified!');
             }
             
             await getLocationAndProceed();
@@ -384,6 +383,9 @@ export default function StudentScannerScreen({ navigation }: any) {
         setBlinkConfirmed(false);
         setIsBlinking(false);
         setMessage("Blink your eyes to verify liveness"); 
+        setShowFallback(false);
+        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+        fallbackTimer.current = setTimeout(() => setShowFallback(true), 10000); // 10s for scanner
     };
 
     const resetToScanning = () => { setStep('scanning'); setPendingCode(null); setScanned(false); setMessage("Aim camera at Teacher's QR Code"); };
@@ -419,7 +421,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                             mode: FaceDetector.FaceDetectorMode.fast,
                             detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
                             runClassifications: FaceDetector.FaceDetectorClassifications.all,
-                            minDetectionInterval: 100,
+                            minDetectionInterval: 50,
                             tracking: true,
                         }}
                     >
@@ -427,6 +429,17 @@ export default function StudentScannerScreen({ navigation }: any) {
                             <Text style={styles.faceGuideText}>{message}</Text>
                             <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
                             {isBlinking && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
+                            {showFallback && !blinkConfirmed && (
+                                <TouchableOpacity 
+                                    style={styles.fallbackBtn} 
+                                    onPress={() => {
+                                        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+                                        captureSecureSelfie();
+                                    }}
+                                >
+                                    <Text style={styles.fallbackBtnText}>Capture Manually</Text>
+                                </TouchableOpacity>
+                            )}
                             <Text style={styles.faceTip}>Place your face in the circle and blink naturally.</Text>
                         </View>
                     </CameraView>
@@ -472,6 +485,8 @@ const styles = StyleSheet.create({
     rangeBadgeOut: { backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: '#f59e0b' },
     rangeBadgeText: { fontSize: 14, fontWeight: '700', color: '#f1f5f9' },
     trackingNote: { fontSize: 11, color: '#6366f1', marginTop: 4, fontWeight: '600' },
+    fallbackBtn: { backgroundColor: 'rgba(30,41,59,0.9)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 20, borderWidth: 1, borderColor: '#334155' },
+    fallbackBtnText: { color: '#6366f1', fontSize: 14, fontWeight: '700' },
 });
 
 

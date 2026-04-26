@@ -6,16 +6,21 @@ module.exports = ({ config }) => {
       default: { 
         id: "8f17474b-1110-47b2-86ff-26ab0cb198d2", 
         slug: "attendance-app" 
+      },
+      secondary: {
+        id: "8fbb94c8-1140-415e-95c3-64e1da1b5cc3",
+        slug: "attendance-system"
       }
     };
     
-    const activeProject = PROJECTS.default;
+    // Switch to secondary if primary (default) hits EAS limits
+    const activeProject = PROJECTS.default; 
 
     return {
         ...config,
         name: "A.E.G.I.S",
         slug: activeProject.slug,
-        version: "2.7.0",
+        version: "2.8.0",
         orientation: "portrait",
         icon: "./assets/icon.png",
         userInterfaceStyle: "dark",

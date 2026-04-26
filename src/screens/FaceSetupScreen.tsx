@@ -25,6 +25,8 @@ export default function FaceSetupScreen({ navigation }: any) {
     const [errorMsg, setErrorMsg] = useState('');
     const [blinkCount, setBlinkCount] = useState(0);
     const [eyesClosed, setEyesClosed] = useState(false);
+    const [showFallback, setShowFallback] = useState(false);
+    const fallbackTimer = useRef<NodeJS.Timeout | null>(null);
     
     const cameraRef = useRef<any>(null);
     const isCapturing = useRef(false);
@@ -39,11 +41,13 @@ export default function FaceSetupScreen({ navigation }: any) {
         const rightOpen = face.rightEyeOpenProbability;
 
         // Detect blink (eyes go from open -> closed -> open)
-        if (!eyesClosed && leftOpen < 0.2 && rightOpen < 0.2) {
+        // Softened thresholds for better reliability (0.2 -> 0.3, 0.7 -> 0.6)
+        if (!eyesClosed && leftOpen < 0.3 && rightOpen < 0.3) {
             setEyesClosed(true);
-        } else if (eyesClosed && leftOpen > 0.7 && rightOpen > 0.7) {
+        } else if (eyesClosed && leftOpen > 0.6 && rightOpen > 0.6) {
             setEyesClosed(false);
             setBlinkCount(prev => prev + 1);
+            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
             
             // Require 1 clear blink to capture
             autoCapture();
@@ -96,6 +100,13 @@ export default function FaceSetupScreen({ navigation }: any) {
         }
         setStage('capture');
         setBlinkCount(0);
+        setShowFallback(false);
+
+        // If blink not detected in 8s, show manual button
+        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+        fallbackTimer.current = setTimeout(() => {
+            setShowFallback(true);
+        }, 8000);
     };
 
     const retry = () => {
@@ -160,7 +171,7 @@ export default function FaceSetupScreen({ navigation }: any) {
                             mode: FaceDetector.FaceDetectorMode.fast,
                             detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
                             runClassifications: FaceDetector.FaceDetectorClassifications.all,
-                            minDetectionInterval: 100,
+                            minDetectionInterval: 50,
                             tracking: true,
                         }}
                     >
@@ -173,6 +184,17 @@ export default function FaceSetupScreen({ navigation }: any) {
                                 <Text style={styles.subInstruction}>
                                     Keep face within the frame
                                 </Text>
+                                {showFallback && (
+                                    <TouchableOpacity 
+                                        style={styles.fallbackBtn} 
+                                        onPress={() => {
+                                            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+                                            autoCapture();
+                                        }}
+                                    >
+                                        <Text style={styles.fallbackBtnText}>Capture Manually</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
                     </CameraView>
@@ -232,11 +254,11 @@ const styles = StyleSheet.create({
     featureSub: { fontSize: 13, color: '#64748b' },
     startBtn: { backgroundColor: '#6366f1', paddingVertical: 18, borderRadius: 16, marginTop: 30, alignItems: 'center' },
     startBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-    cameraBox: { flex: 1, borderRadius: 30, overflow: 'hidden', marginBottom: 40, borderWeight: 2, borderColor: '#334155' },
+    cameraBox: { flex: 1, borderRadius: 30, overflow: 'hidden', marginBottom: 40, borderWidth: 2, borderColor: '#334155' },
     camera: { flex: 1 },
     overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(2, 6, 23, 0.4)' },
-    guideFrame: { width: width * 0.7, height: width * 0.7, borderRadius: width * 0.35, borderWeight: 4, borderColor: '#6366f1', borderStyle: 'dashed' },
-    instructionBox: { marginTop: 40, backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 20, borderRadius: 20, alignItems: 'center' },
+    guideFrame: { width: width * 0.7, height: width * 0.7, borderRadius: width * 0.35, borderWidth: 4, borderColor: '#6366f1', borderStyle: 'dashed' },
+    instructionBox: { position: 'absolute', bottom: 40, backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 20, borderRadius: 20, alignItems: 'center', width: '80%', borderWidth: 1, borderColor: '#334155' },
     instructionText: { color: '#fff', fontSize: 18, fontWeight: '800' },
     subInstruction: { color: '#94a3b8', fontSize: 13, marginTop: 4 },
     centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 },
@@ -253,5 +275,7 @@ const styles = StyleSheet.create({
     errorText: { fontSize: 15, color: '#94a3b8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
     retryBtn: { backgroundColor: '#1e293b', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 14, marginTop: 30 },
     retryBtnText: { color: '#f1f5f9', fontWeight: '700' },
+    fallbackBtn: { backgroundColor: '#1e293b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, marginTop: 15, borderWidth: 1, borderColor: '#334155' },
+    fallbackBtnText: { color: '#6366f1', fontSize: 13, fontWeight: '700' },
 });
 
