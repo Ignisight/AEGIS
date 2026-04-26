@@ -134,8 +134,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     const [isBlinking, setIsBlinking] = useState(false);
     const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
-    const [showFallback, setShowFallback] = useState(false);
-    const fallbackTimer = useRef<NodeJS.Timeout | null>(null);
+    // Manual capture removed — blink is the ONLY way (anti-proxy security)
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
     const studentInfoRef = useRef<{ email: string; deviceId: string } | null>(null);
@@ -167,9 +166,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                 navigation.replace('StudentLogin');
             }
 
-            // Start fallback timer
-            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-            fallbackTimer.current = setTimeout(() => setShowFallback(true), 6000);
+            // No manual fallback — blink is mandatory for liveness security
         })();
 
         return () => {
@@ -242,7 +239,6 @@ export default function StudentScannerScreen({ navigation }: any) {
             // Blink complete! Auto-capture
             setIsBlinking(false);
             setBlinkConfirmed(true);
-            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
             setMessage("Liveness verified! Capturing...");
             captureSecureSelfie();
         } else if (!isBlinking) {
@@ -382,10 +378,7 @@ export default function StudentScannerScreen({ navigation }: any) {
         setSavedLocation(null); 
         setBlinkConfirmed(false);
         setIsBlinking(false);
-        setMessage("Blink your eyes to verify liveness"); 
-        setShowFallback(false);
-        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-        fallbackTimer.current = setTimeout(() => setShowFallback(true), 10000); // 10s for scanner
+        setMessage("Blink naturally to verify identity");
     };
 
     const resetToScanning = () => { setStep('scanning'); setPendingCode(null); setScanned(false); setMessage("Aim camera at Teacher's QR Code"); };
@@ -429,17 +422,6 @@ export default function StudentScannerScreen({ navigation }: any) {
                             <Text style={styles.faceGuideText}>{message}</Text>
                             <View style={[styles.faceCircle, faceDetected && {borderColor: '#22c55e'}]} />
                             {isBlinking && <ActivityIndicator size="large" color="#22c55e" style={{marginTop: 20}} />}
-                            {showFallback && !blinkConfirmed && (
-                                <TouchableOpacity 
-                                    style={styles.fallbackBtn} 
-                                    onPress={() => {
-                                        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-                                        captureSecureSelfie();
-                                    }}
-                                >
-                                    <Text style={styles.fallbackBtnText}>Capture Manually</Text>
-                                </TouchableOpacity>
-                            )}
                             <Text style={styles.faceTip}>Place your face in the circle and blink naturally.</Text>
                         </View>
                     </CameraView>
@@ -485,8 +467,7 @@ const styles = StyleSheet.create({
     rangeBadgeOut: { backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: '#f59e0b' },
     rangeBadgeText: { fontSize: 14, fontWeight: '700', color: '#f1f5f9' },
     trackingNote: { fontSize: 11, color: '#6366f1', marginTop: 4, fontWeight: '600' },
-    fallbackBtn: { backgroundColor: 'rgba(30,41,59,0.9)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 20, borderWidth: 1, borderColor: '#334155' },
-    fallbackBtnText: { color: '#6366f1', fontSize: 14, fontWeight: '700' },
+
 });
 
 
