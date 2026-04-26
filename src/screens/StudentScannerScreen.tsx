@@ -239,7 +239,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             const burst: string[] = [];
             const targetCount = 8;
             let attempts = 0;
-            const maxAttempts = 20; // Safety limit
+            const maxAttempts = 30; // Increased limit for high-speed retries
             
             while (burst.length < targetCount && attempts < maxAttempts) {
                 attempts++;
@@ -254,11 +254,8 @@ export default function StudentScannerScreen({ navigation }: any) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (frameErr) {
-                    // If hardware is busy, wait a bit longer before retry
-                    await new Promise(r => setTimeout(r, 300));
+                    // Hardware is busy, retry instantly
                 }
-                // Standard delay between frames
-                await new Promise(r => setTimeout(r, 100));
             }
 
             if (burst.length < 4) throw new Error("Could not capture enough frames. Please try again.");
