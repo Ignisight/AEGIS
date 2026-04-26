@@ -236,22 +236,23 @@ export default function StudentScannerScreen({ navigation }: any) {
         try {
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
+            setMessage('Verifying...');
             
-            // Photo burst — camera stays alive during capture
+            // Silent photo burst — no flash, no sound, no visual disruption
             const burst: string[] = [];
             for (let i = 0; i < 3; i++) {
-                setMessage(`Scanning: ${i + 1} of 3...`);
                 try {
                     const photo = await cameraRef.current.takePictureAsync({
                         quality: 0.3, 
                         base64: true,
                         exif: false,
+                        shutterSound: false,
                     });
                     if (photo && photo.base64) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (e) {
-                    // skip failed frame
+                    // skip failed frame silently
                 }
                 await new Promise(r => setTimeout(r, 300));
             }
