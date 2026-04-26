@@ -138,6 +138,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
     const [isSmiling, setIsSmiling] = useState(false);
+    const isCapturingRef = useRef(false);
     // Manual capture removed — blink is the ONLY way (anti-proxy security)
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
@@ -232,7 +233,8 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const captureMotionBurst = async () => {
-        if (!cameraRef.current) return;
+        if (!cameraRef.current || isCapturingRef.current) return;
+        isCapturingRef.current = true;
         try {
             blinkConfirmedRef.current = true;
             setBlinkConfirmed(true);
@@ -264,6 +266,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             await handleFaceVerification(burst);
         } catch (err: any) {
             Alert.alert('Capture Error', err.message || 'Please try again.');
+            isCapturingRef.current = false;
             resetToFace();
         }
     };
@@ -417,6 +420,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                         ref={cameraRef}
                         style={StyleSheet.absoluteFillObject}
                         facing="front"
+                        flash="off"
                         onFacesDetected={onFacesDetected}
                         faceDetectorSettings={{
                             mode: FaceDetector.FaceDetectorMode.accurate,
