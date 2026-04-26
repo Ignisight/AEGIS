@@ -131,7 +131,9 @@ export default function StudentScannerScreen({ navigation }: any) {
     const cameraRef = useRef<any>(null);
 
     // ── Liveness Detection State ───────────────────────────────────────────
-    const [isBlinking, setIsBlinking] = useState(false);
+    const isBlinkingRef = useRef(false);
+    const [isBlinking, setIsBlinking] = useState(false); // UI display only
+    const blinkConfirmedRef = useRef(false);
     const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
     // Manual capture removed — blink is the ONLY way (anti-proxy security)
@@ -217,7 +219,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const onFacesDetected = async ({ faces }: any) => {
-        if (step !== 'face-capture' || blinkConfirmed) return;
+        if (step !== 'face-capture' || blinkConfirmedRef.current) return;
 
         if (faces.length === 0) {
             setFaceDetected(false);
@@ -228,20 +230,28 @@ export default function StudentScannerScreen({ navigation }: any) {
         setFaceDetected(true);
         const face = faces[0];
         
-        // Super Forgiving Blink Logic: closed (<0.4) then opened (>0.5)
         const leftOpen = face.leftEyeOpenProbability;
         const rightOpen = face.rightEyeOpenProbability;
 
+        // Guard: if values are undefined, skip this frame
+        if (leftOpen == null || rightOpen == null) return;
+
         if (leftOpen < 0.4 && rightOpen < 0.4) {
-            setIsBlinking(true);
-            setMessage("Blink detected! Now open your eyes...");
-        } else if (isBlinking && leftOpen > 0.5 && rightOpen > 0.5) {
-            // Blink complete! Auto-capture
+            // Eyes closed — mark blink started
+            if (!isBlinkingRef.current) {
+                isBlinkingRef.current = true;
+                setIsBlinking(true);
+                setMessage("Blink detected! Now open your eyes...");
+            }
+        } else if (isBlinkingRef.current && leftOpen > 0.5 && rightOpen > 0.5) {
+            // Eyes re-opened after close — blink complete!
+            isBlinkingRef.current = false;
+            blinkConfirmedRef.current = true;
             setIsBlinking(false);
             setBlinkConfirmed(true);
             setMessage("Liveness verified! Capturing...");
             captureSecureSelfie();
-        } else if (!isBlinking) {
+        } else if (!isBlinkingRef.current) {
             setMessage("Blink naturally to verify identity");
         }
     };
@@ -377,7 +387,9 @@ export default function StudentScannerScreen({ navigation }: any) {
         setScanned(false); 
         setSavedLocation(null); 
         setBlinkConfirmed(false);
+        blinkConfirmedRef.current = false;
         setIsBlinking(false);
+        isBlinkingRef.current = false;
         setMessage("Blink naturally to verify identity");
     };
 
