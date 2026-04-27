@@ -411,7 +411,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                     <Text style={styles.backText}>{selectMode ? '✕ Cancel' : '← Back'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>
-                    {selectMode ? `${selected.size} Selected` : 'History'}
+                    {selectMode ? `${selected.size} Selected` : `History (${filteredSessions.length})`}
                 </Text>
                 {!selectMode ? (
                     <TouchableOpacity onPress={fetchHistory} style={styles.refreshBtn}>

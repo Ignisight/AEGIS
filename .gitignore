@@ -15,3 +15,6 @@ server/
 .env.production
 token.json
 credentials.json
+# Native builds (EAS will generate these from app.config.js)
+android/
+ios/

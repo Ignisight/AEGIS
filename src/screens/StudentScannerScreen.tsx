@@ -131,11 +131,6 @@ export default function StudentScannerScreen({ navigation }: any) {
     const [pendingCode, setPendingCode] = useState<string | null>(null);
     const cameraRef = useRef<any>(null);
 
-    // ── Liveness Detection State ───────────────────────────────────────────
-    const isBlinkingRef = useRef(false);
-    const [isBlinking, setIsBlinking] = useState(false); 
-    const blinkConfirmedRef = useRef(false);
-    const [blinkConfirmed, setBlinkConfirmed] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
     const [isSmiling, setIsSmiling] = useState(false);
     const isCapturingRef = useRef(false);
@@ -145,6 +140,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     const studentInfoRef = useRef<{ email: string; deviceId: string } | null>(null);
     const uiPollRef = useRef<NodeJS.Timeout | null>(null);
     const [savedLocation, setSavedLocation] = useState<{lat: number, lon: number} | null>(null);
+    const [captureCount, setCaptureCount] = useState(0);
 
     useEffect(() => {
         (async () => {
@@ -223,8 +219,6 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const onFacesDetected = async ({ faces }: any) => {
-        if (step !== 'face-capture' || blinkConfirmedRef.current || isCapturingRef.current) return;
-        
         if (faces.length > 0) {
             setFaceDetected(true);
             setMessage("Face aligned. Tap the button to verify.");
@@ -238,13 +232,14 @@ export default function StudentScannerScreen({ navigation }: any) {
         if (!cameraRef.current || isCapturingRef.current) return;
         isCapturingRef.current = true;
         try {
-            blinkConfirmedRef.current = true;
-            setBlinkConfirmed(true);
             setMessage('Verifying...');
             
             // Photo burst — silent and fast
             const burst: string[] = [];
+            setCaptureCount(0);
             for (let i = 0; i < 3; i++) {
+                setCaptureCount(i + 1);
+                setMessage(`Scanning: ${i + 1} of 3`);
                 try {
                     const photo = await cameraRef.current.takePictureAsync({
                         quality: 0.3, 
@@ -260,6 +255,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             }
 
             setStep('processing');
+            setCaptureCount(0);
             setMessage('Analyzing identity...');
 
             if (burst.length === 0) throw new Error("No frames captured. Please try again.");
@@ -385,11 +381,7 @@ export default function StudentScannerScreen({ navigation }: any) {
         setPendingCode(null); 
         setScanned(false); 
         setSavedLocation(null); 
-        setBlinkConfirmed(false);
-        blinkConfirmedRef.current = false;
-        setIsBlinking(false);
-        isBlinkingRef.current = false;
-        setMessage("Blink naturally to verify identity");
+        setMessage("Align face and tap the button to verify");
     };
 
     const resetToScanning = () => { setStep('scanning'); setPendingCode(null); setScanned(false); setMessage("Aim camera at Teacher's QR Code"); };
@@ -448,7 +440,13 @@ export default function StudentScannerScreen({ navigation }: any) {
                     </CameraView>
                 )}
                 {step === 'processing' && (
-                    <View style={styles.processingOverlay}><ActivityIndicator size="large" color="#6366f1" /><Text style={styles.processingText}>{message}</Text></View>
+                    <View style={styles.processingOverlay}>
+                        <ActivityIndicator size="large" color="#6366f1" />
+                        <Text style={styles.processingText}>{message}</Text>
+                        {captureCount > 0 && captureCount <= 3 && (
+                            <Text style={styles.captureCounter}>Step {captureCount} of 3</Text>
+                        )}
+                    </View>
                 )}
             </View>
             <View style={styles.footer}>
@@ -512,6 +510,7 @@ const styles = StyleSheet.create({
     rangeBadgeOut: { backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: '#f59e0b' },
     rangeBadgeText: { fontSize: 14, fontWeight: '700', color: '#f1f5f9' },
     trackingNote: { fontSize: 11, color: '#6366f1', marginTop: 4, fontWeight: '600' },
+    captureCounter: { color: '#6366f1', fontSize: 14, fontWeight: '700', marginTop: 10 },
 
 });
 
