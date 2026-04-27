@@ -22,6 +22,18 @@ module.exports = ({ config }) => {
         owner: "hexagon122",
         slug: "aegis-app-final",
         version: "2.8.0",
+        runtimeVersion: {
+            policy: "appVersion"
+        },
+        updates: {
+            url: "https://u.expo.dev/4ec532fe-8c91-4fef-94f4-45e42cfeeb36",
+            fallbackToCacheTimeout: 0,
+            codeSigningCertificate: "./keys/certificate.pem",
+            codeSigningMetadata: {
+                keyid: "main",
+                alg: "rsa-v1_5-sha256"
+            }
+        },
         orientation: "portrait",
         icon: "./assets/icon.png",
         userInterfaceStyle: "dark",
