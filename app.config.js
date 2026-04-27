@@ -4,7 +4,7 @@ module.exports = ({ config }) => {
     // Project Configuration
     const PROJECTS = {
       default: { 
-        id: "8f17474b-1110-47b2-86ff-26ab0cb198d2", 
+        id: "df0a81f0-ecc3-4864-aaf6-42ef27b830d2", 
         slug: "attendance-app" 
       },
       secondary: {
@@ -14,12 +14,13 @@ module.exports = ({ config }) => {
     };
     
     // Switch to secondary if primary (default) hits EAS limits
-    const activeProject = PROJECTS.secondary; 
+    const activeProject = PROJECTS.default; 
 
     return {
         ...config,
         name: "A.E.G.I.S",
-        slug: activeProject.slug,
+        owner: "hexagon122",
+        slug: "aegis-app-final",
         version: "2.8.0",
         orientation: "portrait",
         icon: "./assets/icon.png",
@@ -39,7 +40,7 @@ module.exports = ({ config }) => {
         extra: {
             APP_SECRET_KEY: process.env.APP_SECRET_KEY || "MISSING_KEY",
             eas: {
-                projectId: activeProject.id,
+                projectId: "4ec532fe-8c91-4fef-94f4-45e42cfeeb36",
             },
         },
         plugins: [

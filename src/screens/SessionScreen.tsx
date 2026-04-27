@@ -12,7 +12,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { stopSession } from '../api';
 import * as ScreenCapture from 'expo-screen-capture';
-import * as Device from 'expo-device';
+import * as Sharing from 'expo-sharing';
+import ViewShot from 'react-native-view-shot';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const QR_SIZE = Math.min(SCREEN_WIDTH - 64, 320);
@@ -28,11 +29,16 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     // Fall back values if not provided
     const DURATION_MS: number = sessionDurationMs ?? 60 * 60 * 1000;
     const JOIN_WINDOW_MS: number = joinWindowMs ?? 10 * 60 * 1000;
+    const START_TIME: number = route.params.createdAt || Date.now();
 
-    const [timeLeft, setTimeLeft] = useState(DURATION_MS);
-    const [joinTimeLeft, setJoinTimeLeft] = useState(JOIN_WINDOW_MS);
-    const [isActive, setIsActive] = useState(true);
-    const [isJoinActive, setIsJoinActive] = useState(true);
+    // Initialize timers based on absolute start time
+    const initialRemaining = Math.max(0, (START_TIME + DURATION_MS) - Date.now());
+    const initialJoinRemaining = Math.max(0, (START_TIME + JOIN_WINDOW_MS) - Date.now());
+
+    const [timeLeft, setTimeLeft] = useState(initialRemaining);
+    const [joinTimeLeft, setJoinTimeLeft] = useState(initialJoinRemaining);
+    const [isActive, setIsActive] = useState(initialRemaining > 0);
+    const [isJoinActive, setIsJoinActive] = useState(initialJoinRemaining > 0);
     const [closing, setClosing] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const viewShotRef = useRef<any>(null);
@@ -51,9 +57,8 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
     useEffect(() => {
         if (!isActive) return;
 
-        const startTime = Date.now();
-        const endTime = startTime + DURATION_MS;
-        const joinEndTime = startTime + JOIN_WINDOW_MS;
+        const endTime = START_TIME + DURATION_MS;
+        const joinEndTime = START_TIME + JOIN_WINDOW_MS;
 
         const tick = () => {
             const now = Date.now();
@@ -68,7 +73,8 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
                     sessionId: route.params.sessionId, 
                     sessionName: route.params.sessionName,
                     sessionDurationMs: DURATION_MS,
-                    createdAt: startTime // Pass creation time for timer in Responses
+                    createdAt: START_TIME,
+                    joinWindowExpired: true,
                 });
             } else {
                 setJoinTimeLeft(joinRemaining);
@@ -139,7 +145,11 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
             sessionId: route.params.sessionId,
             sessionName,
             sessionDurationMs: DURATION_MS,
-            createdAt: route.params.createdAt || Date.now()
+            createdAt: route.params.createdAt || Date.now(),
+            joinWindowExpired: !isJoinActive,
+            // Pass full params so Responses can navigate back to QR
+            formUrl,
+            joinWindowMs: JOIN_WINDOW_MS,
         });
     };
 
@@ -182,7 +192,10 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
 
     const handleShareQR = async () => {
         try {
-            if (!viewShotRef.current) return;
+            if (!viewShotRef.current) {
+                Alert.alert('Error', 'QR code not ready yet.');
+                return;
+            }
             const uri = await viewShotRef.current.capture();
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(uri, { dialogTitle: 'Share Session QR Code' });
@@ -225,14 +238,16 @@ export default function SessionScreen({ navigation, route }: SessionScreenProps)
             {/* QR Code */}
             <View style={styles.qrContainer}>
                 {isActive && isJoinActive ? (
-                    <View style={styles.qrWrapper}>
-                        <QRCode
-                            value={formUrl}
-                            size={QR_SIZE}
-                            backgroundColor="#ffffff"
-                            color="#0f172a"
-                        />
-                    </View>
+                    <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>
+                        <View style={styles.qrWrapper}>
+                            <QRCode
+                                value={formUrl}
+                                size={QR_SIZE}
+                                backgroundColor="#ffffff"
+                                color="#0f172a"
+                            />
+                        </View>
+                    </ViewShot>
                 ) : (
                     <View style={[styles.qrClosed, !isActive && { borderColor: '#ef4444' }]}>
                         <Text style={styles.qrClosedIcon}>{!isActive ? '⏹' : '🚫'}</Text>

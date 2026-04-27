@@ -37,6 +37,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     const [actionLoading, setActionLoading] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
     const [now, setNow] = useState(Date.now());
+
+    // Simplified list: All sessions for the last 6 months
+    const filteredSessions = sessions;
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchHistory = useCallback(async () => {
@@ -57,11 +60,11 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
     useEffect(() => { fetchHistory(); }, []);
 
-    // Update elapsed time every second for active sessions
+    // Update elapsed time every 10 seconds (optimized for performance)
     useEffect(() => {
         const hasActive = sessions.some(s => s.active);
         if (hasActive) {
-            timerRef.current = setInterval(() => setNow(Date.now()), 1000);
+            timerRef.current = setInterval(() => setNow(Date.now()), 10000);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [sessions]);
@@ -133,10 +136,10 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     };
 
     const selectAll = () => {
-        if (selected.size === sessions.length) {
+        if (selected.size === filteredSessions.length) {
             setSelected(new Set());
         } else {
-            setSelected(new Set(sessions.map(s => s.id)));
+            setSelected(new Set(filteredSessions.map(s => s.id)));
         }
     };
 
@@ -205,7 +208,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         setMenuVisible(false);
         try {
             const serverUrl = getServerUrl();
-            const targetIds = selected.size > 0 ? Array.from(selected) : sessions.map(s => s.id);
+            const targetIds = selected.size > 0 ? Array.from(selected) : filteredSessions.map(s => s.id);
             const totalCount = targetIds.length;
 
             if (totalCount === 0) {
@@ -234,7 +237,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 const ids = targetIds.join(',');
                 url = `${serverUrl}/api/export-multi?ids=${ids}`;
             } else {
-                const s = sessions.find(item => item.id === targetIds[0]);
+                const s = filteredSessions.find(item => item.id === targetIds[0]);
                 if (!s) return;
                 
                 const safeName = s.name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -408,7 +411,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                     <Text style={styles.backText}>{selectMode ? '✕ Cancel' : '← Back'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>
-                    {selectMode ? `${selected.size} Selected` : 'Session History'}
+                    {selectMode ? `${selected.size} Selected` : 'History'}
                 </Text>
                 {!selectMode ? (
                     <TouchableOpacity onPress={fetchHistory} style={styles.refreshBtn}>
@@ -417,17 +420,19 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 ) : (
                     <TouchableOpacity onPress={selectAll} style={styles.refreshBtn}>
                         <Text style={styles.refreshText}>
-                            {selected.size === sessions.length ? '☐' : '☑'}
+                            {selected.size === filteredSessions.length ? '☐' : '☑'}
                         </Text>
                     </TouchableOpacity>
                 )}
             </View>
 
             {!selectMode && (
-                <Text style={styles.retentionNote}>📌 Sessions stored for 2 days • Long-press to select</Text>
+                <Text style={styles.retentionNote}>
+                    📌 Attendance records for the last 6 months
+                </Text>
             )}
 
-            {sessions.length === 0 ? (
+            {filteredSessions.length === 0 ? (
                 <View style={styles.emptyBox}>
                     <Text style={styles.emptyIcon}>📭</Text>
                     <Text style={styles.emptyTitle}>No sessions yet</Text>
@@ -435,7 +440,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 </View>
             ) : (
                 <FlatList
-                    data={sessions}
+                    data={filteredSessions}
                     renderItem={renderItem}
                     keyExtractor={item => item.id.toString()}
                     contentContainerStyle={styles.listContent}
@@ -445,7 +450,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             )}
 
             {/* Bottom Action Bar */}
-            {sessions.length > 0 && (
+            {filteredSessions.length > 0 && (
                 <View style={styles.bottomBarWrapper}>
                     {menuVisible && (
                         <View style={styles.menuContainer}>
@@ -514,8 +519,20 @@ const styles = StyleSheet.create({
     title: { flex: 1, fontSize: 22, fontWeight: '700', color: '#f1f5f9' },
     refreshBtn: { padding: 8 },
     refreshText: { fontSize: 20 },
+    tabBar: {
+        flexDirection: 'row', marginHorizontal: 20, marginTop: 8, marginBottom: 8,
+        backgroundColor: '#1e293b', borderRadius: 14, padding: 4,
+    },
+    tab: {
+        flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+        flexDirection: 'row', justifyContent: 'center', gap: 6,
+    },
+    tabActive: { backgroundColor: '#6366f1' },
+    tabText: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
+    tabTextActive: { color: '#ffffff' },
+    tabCount: { color: '#64748b', fontSize: 12, fontWeight: '700', backgroundColor: '#0f172a', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
     retentionNote: {
-        fontSize: 12, color: '#f59e0b', paddingHorizontal: 28, marginBottom: 16,
+        fontSize: 12, color: '#f59e0b', paddingHorizontal: 28, marginBottom: 12,
         backgroundColor: 'rgba(245, 158, 11, 0.08)', marginHorizontal: 20,
         paddingVertical: 8, borderRadius: 8, textAlign: 'center',
     },

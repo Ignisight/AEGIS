@@ -223,11 +223,13 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const onFacesDetected = async ({ faces }: any) => {
-        if (step !== 'face-capture' || blinkConfirmedRef.current) return;
-        setFaceDetected(faces.length > 0);
+        if (step !== 'face-capture' || blinkConfirmedRef.current || isCapturingRef.current) return;
+        
         if (faces.length > 0) {
+            setFaceDetected(true);
             setMessage("Face aligned. Tap the button to verify.");
         } else {
+            setFaceDetected(false);
             setMessage("Looking for face...");
         }
     };
@@ -240,10 +242,9 @@ export default function StudentScannerScreen({ navigation }: any) {
             setBlinkConfirmed(true);
             setMessage('Verifying...');
             
-            // Photo burst — camera stays alive, shows progress
+            // Photo burst — silent and fast
             const burst: string[] = [];
             for (let i = 0; i < 3; i++) {
-                setMessage(`Scanning: ${i + 1} of 3...`);
                 try {
                     const photo = await cameraRef.current.takePictureAsync({
                         quality: 0.3, 
@@ -254,10 +255,8 @@ export default function StudentScannerScreen({ navigation }: any) {
                     if (photo && photo.base64) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
-                } catch (e) {
-                    // skip failed frame
-                }
-                await new Promise(r => setTimeout(r, 300));
+                } catch (e) {}
+                await new Promise(r => setTimeout(r, 250)); // 250ms burst gap
             }
 
             setStep('processing');

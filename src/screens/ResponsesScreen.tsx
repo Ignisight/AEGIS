@@ -249,8 +249,17 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             <View style={styles.header}>
                 <TouchableOpacity 
                     onPress={() => {
-                        if (navigation.canGoBack()) {
-                            navigation.goBack();
+                        const { joinWindowExpired, formUrl, joinWindowMs } = route.params;
+                        // If QR join window is still active, go back to QR page
+                        if (!joinWindowExpired && formUrl) {
+                            navigation.replace('Session', {
+                                sessionId: route.params.sessionId,
+                                sessionName: route.params.sessionName,
+                                formUrl,
+                                sessionDurationMs: route.params.sessionDurationMs,
+                                joinWindowMs: joinWindowMs,
+                                createdAt: route.params.createdAt,
+                            });
                         } else {
                             navigation.reset({
                                 index: 0,
@@ -260,7 +269,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
                     }} 
                     style={styles.backBtn}
                 >
-                    <Text style={styles.backText}>← Home</Text>
+                    <Text style={styles.backText}>{route.params.joinWindowExpired ? '← Home' : '← QR Code'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Responses</Text>
                 <View style={styles.countBadge}>
