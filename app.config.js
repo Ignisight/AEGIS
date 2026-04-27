@@ -27,12 +27,7 @@ module.exports = ({ config }) => {
         },
         updates: {
             url: "https://u.expo.dev/4ec532fe-8c91-4fef-94f4-45e42cfeeb36",
-            fallbackToCacheTimeout: 0,
-            codeSigningCertificate: "./keys/certificate.pem",
-            codeSigningMetadata: {
-                keyid: "main",
-                alg: "rsa-v1_5-sha256"
-            }
+            fallbackToCacheTimeout: 0
         },
         orientation: "portrait",
         icon: "./assets/icon.png",
