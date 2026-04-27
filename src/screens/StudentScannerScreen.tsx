@@ -132,9 +132,7 @@ export default function StudentScannerScreen({ navigation }: any) {
     const cameraRef = useRef<any>(null);
 
     const [faceDetected, setFaceDetected] = useState(false);
-    const [isSmiling, setIsSmiling] = useState(false);
     const isCapturingRef = useRef(false);
-    // Manual capture removed — blink is the ONLY way (anti-proxy security)
 
     const [studentInfo, setStudentInfo] = useState<{ email: string; deviceId: string } | null>(null);
     const studentInfoRef = useRef<{ email: string; deviceId: string } | null>(null);
@@ -168,7 +166,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                 navigation.replace('StudentLogin');
             }
 
-            // No manual fallback — blink is mandatory for liveness security
+
         })();
 
         return () => {
@@ -219,6 +217,8 @@ export default function StudentScannerScreen({ navigation }: any) {
     };
 
     const onFacesDetected = async ({ faces }: any) => {
+        if (step !== 'face-capture' || isCapturingRef.current) return;
+
         if (faces.length > 0) {
             setFaceDetected(true);
             setMessage("Face aligned. Tap the button to verify.");
@@ -251,7 +251,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                         burst.push(`data:image/jpeg;base64,${photo.base64}`);
                     }
                 } catch (e) {}
-                await new Promise(r => setTimeout(r, 250)); // 250ms burst gap
+                await new Promise(r => setTimeout(r, 300)); // 300ms burst gap
             }
 
             setStep('processing');

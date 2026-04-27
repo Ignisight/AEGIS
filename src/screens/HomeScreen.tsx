@@ -328,7 +328,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                     <TouchableOpacity style={styles.infoCard} onPress={openHistory}>
                         <Text style={styles.infoIcon}>📊</Text>
                         <Text style={styles.infoTitle}>History</Text>
-                        <Text style={styles.infoDesc}>Past 2 days records</Text>
+                        <Text style={styles.infoDesc}>6 months of records</Text>
                     </TouchableOpacity>
                     <View style={styles.infoCard}>
                         <Text style={styles.infoIcon}>☁️</Text>
@@ -428,7 +428,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                                 <Text style={styles.menuItemIcon}>📊</Text>
                                 <View style={styles.menuItemContent}>
                                     <Text style={styles.menuItemTitle}>Session History</Text>
-                                    <Text style={styles.menuItemDesc}>View past 2 days of records</Text>
+                                    <Text style={styles.menuItemDesc}>View 6 months of records</Text>
                                 </View>
                                 <Text style={styles.menuItemArrow}>›</Text>
                             </TouchableOpacity>
