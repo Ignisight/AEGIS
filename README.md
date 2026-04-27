@@ -19,6 +19,10 @@ A.E.G.I.S is a high-security, anti-proxy attendance system designed for NIT Jams
 *   **Real-time Responses**: Live view of students as they verify their identity.
 *   **6-Month History**: Unified, high-performance history list powered by MongoDB aggregation.
 
+### 4. Admin Dashboard
+*   **Web Portal**: Dedicated web interface hosted on the backend server for complete system management.
+*   **Access Control**: Whitelist teachers, review security flags, manage biometric records, and monitor system analytics.
+
 ## 🛠️ Technology Stack
 *   **Framework**: React Native (Expo SDK 51+)
 *   **Location**: Expo Location + TaskManager
