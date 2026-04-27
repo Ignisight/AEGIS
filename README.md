@@ -20,7 +20,7 @@ A.E.G.I.S is a high-security, anti-proxy attendance system designed for NIT Jams
 *   **6-Month History**: Unified, high-performance history list powered by MongoDB aggregation.
 
 ### 4. Admin Dashboard
-*   **Web Portal**: Dedicated web interface hosted on the backend server for complete system management.
+*   **Web Portal**: [**AEGIS Admin Dashboard**](https://aegis-server-02y5.onrender.com/admin/) - Dedicated web interface hosted on the backend server for complete system management.
 *   **Access Control**: Whitelist teachers, review security flags, manage biometric records, and monitor system analytics.
 
 ## 🛠️ Technology Stack
