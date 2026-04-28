@@ -25,6 +25,7 @@ import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 import * as FaceDetector from 'expo-face-detector';
 
@@ -341,6 +342,59 @@ export default function StudentScannerScreen({ navigation }: any) {
         }
     };
 
+    const pickImageAndScan = async () => {
+        if (step !== 'scanning' || !studentInfo) return;
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Gallery permission is required to upload QR.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 1,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setStep('processing');
+                setMessage('Scanning QR from image...');
+                const asset = result.assets[0];
+
+                const formData = new FormData();
+                formData.append('qrimage', {
+                    uri: asset.uri,
+                    name: 'qr.jpg',
+                    type: 'image/jpeg',
+                } as any);
+
+                const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/decode-qr`, {
+                    method: 'POST',
+                    headers: { ...APP_SECRET_HEADER },
+                    body: formData,
+                });
+
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const match = data.data.match(/\/s\/([a-zA-Z0-9_-]+)/);
+                    if (match) {
+                        submitAttendance(match[1]);
+                    } else {
+                        Alert.alert('Invalid QR', 'This is not a valid A.E.G.I.S QR code.');
+                        resetToScanning();
+                    }
+                } else {
+                    Alert.alert('Scan Failed', data.error || 'Could not find a valid QR code in the image.');
+                    resetToScanning();
+                }
+            }
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to process gallery image.');
+            resetToScanning();
+        }
+    };
+
     const submitAttendance = async (sessionCode: string, locationOverride?: {lat: number, lon: number}) => {
         const locToUse = locationOverride || savedLocation;
         if (!studentInfo || !locToUse) return;
@@ -452,7 +506,7 @@ export default function StudentScannerScreen({ navigation }: any) {
             <View style={styles.footer}>
                 <Text style={styles.footerEmail}>{studentInfo?.email}</Text>
                 <Text style={styles.footerMsg}>{message}</Text>
-                {step === 'scanning' && <TouchableOpacity style={styles.galleryBtn} onPress={() => Alert.alert('Security Lock', 'Gallery upload is disabled for identity verification.')}><Text style={[styles.galleryBtnText, {color: '#64748b'}]}>🖼️ Gallery Disabled</Text></TouchableOpacity>}
+                {step === 'scanning' && <TouchableOpacity style={styles.galleryBtn} onPress={pickImageAndScan}><Text style={styles.galleryBtnText}>🖼️ Upload from Gallery</Text></TouchableOpacity>}
             </View>
         </View>
     );
