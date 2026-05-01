@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
-import { GoogleSignin, GoogleSigninButton } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, FACE_DESCRIPTOR_KEY } from '../config';
 import { getFaceConfig } from '../api';
 
@@ -132,13 +132,14 @@ export default function StudentLoginScreen({ navigation }: any) {
                         <ActivityIndicator color="#6366f1" size="large" style={{ marginVertical: 20 }} />
                     ) : (
                         <>
-                            <GoogleSigninButton
-                                style={{ width: '100%', height: 60, marginTop: 10 }}
-                                size={GoogleSigninButton.Size.Wide}
-                                color={GoogleSigninButton.Color.Light}
+                            <TouchableOpacity 
+                                style={styles.googleBtn} 
                                 onPress={handleGoogleLogin}
                                 disabled={loading}
-                            />
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.googleBtnText}>Sign In with Google</Text>
+                            </TouchableOpacity>
                             <Text style={styles.hint}>Please use your official college email</Text>
                         </>
                     )}
@@ -164,6 +165,8 @@ const styles = StyleSheet.create({
     warningIcon: { fontSize: 24 },
     warningText: { flex: 1, color: '#fca5a5', fontSize: 12, fontWeight: '500', lineHeight: 18 },
     hint: { color: '#64748b', fontSize: 12, marginTop: 16, fontWeight: '500', textAlign: 'center' },
+    googleBtn: { backgroundColor: '#ffffff', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+    googleBtnText: { color: '#1f2937', fontSize: 16, fontWeight: '700' },
     backBtn: { marginTop: 24, paddingVertical: 12 },
     backText: { color: '#64748b', textAlign: 'center', fontWeight: '600', fontSize: 14 },
 });
