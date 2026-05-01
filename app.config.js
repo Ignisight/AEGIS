@@ -52,6 +52,7 @@ module.exports = ({ config }) => {
         },
         plugins: [
             "expo-camera",
+            "@react-native-google-signin/google-signin",
             [
                 "expo-location",
                 {
