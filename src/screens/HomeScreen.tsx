@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
     Text,
@@ -69,25 +70,39 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     const overlayAnim = useRef(new Animated.Value(0)).current;
 
     // ── Course fetching ───────────────────────────────────────────────────
-    const fetchCourses = useCallback(async () => {
-        setCoursesLoading(true);
+    const fetchCourses = useCallback(async (isSilentRefresh = false) => {
+        if (!isSilentRefresh) {
+            setCoursesLoading(true);
+            setSelectedCourse(null);
+        }
         setCoursesError('');
-        setSelectedCourse(null);
         try {
             const json = await getTeacherCourses(userEmail || '');
             if (!json.success) {
-                setCoursesError(json.error || 'Could not load courses.');
+                if (!isSilentRefresh) setCoursesError(json.error || 'Could not load courses.');
             } else {
                 setCourses(json.courses || []);
             }
         } catch {
-            setCoursesError('Could not load courses. Check your connection.');
+            if (!isSilentRefresh) setCoursesError('Could not load courses. Check your connection.');
         } finally {
-            setCoursesLoading(false);
+            if (!isSilentRefresh) setCoursesLoading(false);
         }
     }, [userEmail]);
 
-    useEffect(() => { fetchCourses(); }, [fetchCourses]);
+    useFocusEffect(
+        useCallback(() => {
+            // If we already have courses, do a silent refresh. Otherwise show loader.
+            // Using a ref or just passing the length check based on state. 
+            // Since useFocusEffect runs on focus, we don't want to show the loading indicator if we already have data.
+            let silent = false;
+            setCourses(prev => {
+                silent = prev.length > 0;
+                return prev;
+            });
+            fetchCourses(silent);
+        }, [fetchCourses])
+    );
 
     // ── Drawer helpers ────────────────────────────────────────────────────
     const openDrawer = () => {
@@ -245,7 +260,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                 <View style={styles.courseCenterBox}>
                     <Text style={styles.courseErrorIcon}>⚠️</Text>
                     <Text style={styles.courseErrorText}>{coursesError}</Text>
-                    <TouchableOpacity style={styles.retryBtn} onPress={fetchCourses}>
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => fetchCourses(false)}>
                         <Text style={styles.retryBtnText}>↺  Retry</Text>
                     </TouchableOpacity>
                 </View>
@@ -257,7 +272,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
                     <Text style={styles.courseErrorIcon}>📭</Text>
                     <Text style={styles.courseEmptyText}>No courses assigned.</Text>
                     <Text style={styles.courseHintText}>Contact your admin to get courses assigned.</Text>
-                    <TouchableOpacity style={styles.retryBtn} onPress={fetchCourses}>
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => fetchCourses(false)}>
                         <Text style={styles.retryBtnText}>↺  Refresh</Text>
                     </TouchableOpacity>
                 </View>
