@@ -193,11 +193,11 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             <View style={styles.rowDetails}>
                 <View style={styles.detailChip}>
                     <Text style={styles.detailLabel}>Reg No</Text>
-                    <Text style={styles.detailValue}>{item['Reg No'] || item['Roll Number'] || '—'}</Text>
+                    <Text style={styles.detailValue}>{item['Reg No'] || item['Roll Number'] || item.regNo || item.rollNumber || '—'}</Text>
                 </View>
                 <View style={styles.detailChip}>
                     <Text style={styles.detailLabel}>Name</Text>
-                    <Text style={styles.detailValue}>{item['Name'] || '—'}</Text>
+                    <Text style={styles.detailValue}>{item['Name'] || item.name || '—'}</Text>
                 </View>
             </View>
             <View style={styles.rowDetails}>
