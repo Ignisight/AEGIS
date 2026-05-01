@@ -8,17 +8,20 @@ import { GoogleSignin, GoogleSigninButton } from '@react-native-google-signin/go
 import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, FACE_DESCRIPTOR_KEY } from '../config';
 import { getFaceConfig } from '../api';
 
-GoogleSignin.configure({
-  webClientId: '133030296175-jo6v4cbqupug7dc14sk2g7ob1s2mbgh3.apps.googleusercontent.com',
-  offlineAccess: false,
-});
-
 export default function StudentLoginScreen({ navigation }: any) {
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
         checkExistingStudent();
+        try {
+            GoogleSignin.configure({
+              webClientId: '133030296175-jo6v4cbqupug7dc14sk2g7ob1s2mbgh3.apps.googleusercontent.com',
+              offlineAccess: false,
+            });
+        } catch (err) {
+            console.log("Google configure error:", err);
+        }
     }, []);
 
     const checkExistingStudent = async () => {
