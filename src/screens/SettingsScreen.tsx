@@ -111,14 +111,18 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
         }
         setSaving(true);
         try {
+            const bodyObj = {
+                email: userEmail,
+                currentPassword,
+                newPassword,
+            };
+            const payloadStr = JSON.stringify(bodyObj);
+            const secureHeaders = await getSecureHeaders(payloadStr);
+
             const res = await fetch(`${getServerUrl()}/api/change-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-                body: JSON.stringify({
-                    email: userEmail,
-                    currentPassword,
-                    newPassword,
-                }),
+                headers: { 'Content-Type': 'application/json', ...secureHeaders },
+                body: payloadStr,
             });
             const data = await res.json();
             if (data.success) {

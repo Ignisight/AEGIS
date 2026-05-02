@@ -70,10 +70,14 @@ export default function StudentLoginScreen({ navigation }: any) {
                 hardwareId
             );
 
+            const bodyObj = { idToken, deviceId };
+            const payloadStr = JSON.stringify(bodyObj);
+            const secureHeaders = await getSecureHeaders(payloadStr);
+
             const response = await fetch(`${DEFAULT_SERVER_URL}/api/student/google-login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-                body: JSON.stringify({ idToken, deviceId })
+                headers: { 'Content-Type': 'application/json', ...secureHeaders },
+                body: payloadStr
             });
 
             const data = await response.json();
