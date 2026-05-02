@@ -284,17 +284,21 @@ export default function StudentScannerScreen({ navigation }: any) {
             // Graceful Degradation: Exponential Backoff Retry
             let verifyRes;
             let retries = 2;
+            
+            const payloadString = JSON.stringify({ 
+                email: studentInfo.email, 
+                deviceId: studentInfo.deviceId, 
+                image: images,
+                livenessVerified: true 
+            });
+            const secureHeaders = await getSecureHeaders(payloadString);
+
             for (let i = 0; i <= retries; i++) {
                 try {
                     verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-                        body: JSON.stringify({ 
-                            email: studentInfo.email, 
-                            deviceId: studentInfo.deviceId, 
-                            image: images,
-                            livenessVerified: true 
-                        }),
+                        headers: { 'Content-Type': 'application/json', ...secureHeaders },
+                        body: payloadString,
                     });
                     if (verifyRes.ok) break;
                     if (i === retries) throw new Error('Server unavailable');
@@ -334,18 +338,19 @@ export default function StudentScannerScreen({ navigation }: any) {
             if (location.mocked) { 
                 // Instant Server Alert
                 if (studentInfo) {
+                    const payloadString = JSON.stringify({
+                        email: studentInfo.email,
+                        deviceId: studentInfo.deviceId,
+                        sessionCode: pendingCode || 'unknown',
+                        eventType: 'security_violation',
+                        details: 'Mock location detected during submission.',
+                        lat: location.coords.latitude,
+                        lon: location.coords.longitude,
+                    });
                     await fetch(`${DEFAULT_SERVER_URL}/api/student/location-event`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-                        body: JSON.stringify({
-                            email: studentInfo.email,
-                            deviceId: studentInfo.deviceId,
-                            sessionCode: pendingCode || 'unknown',
-                            eventType: 'security_violation',
-                            details: 'Mock location detected during submission.',
-                            lat: location.coords.latitude,
-                            lon: location.coords.longitude,
-                        }),
+                        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payloadString)) },
+                        body: payloadString,
                     }).catch(() => {});
                 }
                 Alert.alert('Access Denied', 'GPS spoofing detected. This violation has been logged.'); 
