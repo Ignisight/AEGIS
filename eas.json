@@ -10,7 +10,7 @@
       },
       "channel": "preview",
       "env": {
-        "APP_SECRET_KEY": "XGHUQeMoj4eKHf0sDBcWaFwfyUtKbvNAKF2NwnUv"
+        "APP_SECRET_KEY": "khAkWo95apemf6ErtXclh90xh+yJBEsPCcn3yuKpyFk="
       }
     },
     "production": {
@@ -19,7 +19,7 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_SECRET_KEY": "XGHUQeMoj4eKHf0sDBcWaFwfyUtKbvNAKF2NwnUv"
+        "APP_SECRET_KEY": "khAkWo95apemf6ErtXclh90xh+yJBEsPCcn3yuKpyFk="
       }
     }
   }

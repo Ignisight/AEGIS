@@ -26,7 +26,7 @@ export const getSecureHeaders = async (payloadData: string = '') => {
     // Trimmed to ensure network whitespace doesn't break the signature
     const signature = CryptoJS.HmacSHA256(
         payloadData.trim() + timestamp + nonce, 
-        APP_SECRET_KEY || 'XGHUQeMoj4eKHf0sDBcWaFwfyUtKbvNAKF2NwnUv'
+        APP_SECRET_KEY
     ).toString();
     return {
         'x-app-secret': APP_SECRET_KEY, // Kept for backwards compatibility if needed
