@@ -17,7 +17,7 @@ import {
     Platform,
 } from 'react-native';
 import { startSession, getServerUrl, clearUser, getTeacherCourses } from '../api';
-import { APP_SECRET_HEADER } from '../config';
+import { getSecureHeaders } from '../config';
 import * as Location from 'expo-location';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

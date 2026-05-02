@@ -26,7 +26,7 @@ import * as Device from 'expo-device';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
+import { DEFAULT_SERVER_URL, getSecureHeaders, APP_SECRET_KEY } from '../config';
 import * as FaceDetector from 'expo-face-detector';
 
 // ── Task & Storage Keys ────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                 try {
                     verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
                         body: JSON.stringify({ 
                             email: studentInfo.email, 
                             deviceId: studentInfo.deviceId, 
@@ -336,7 +336,7 @@ export default function StudentScannerScreen({ navigation }: any) {
                 if (studentInfo) {
                     await fetch(`${DEFAULT_SERVER_URL}/api/student/location-event`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
                         body: JSON.stringify({
                             email: studentInfo.email,
                             deviceId: studentInfo.deviceId,
@@ -390,7 +390,7 @@ export default function StudentScannerScreen({ navigation }: any) {
 
                 const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/decode-qr`, {
                     method: 'POST',
-                    headers: { ...APP_SECRET_HEADER },
+                    headers: { ...(await getSecureHeaders()) },
                     body: formData,
                 });
 
@@ -425,7 +425,7 @@ export default function StudentScannerScreen({ navigation }: any) {
 
             const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/submit`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER, 'x-signature': signature, 'x-timestamp': timestamp },
+                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()), 'x-signature': signature, 'x-timestamp': timestamp },
                 body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, sessionCode, lat: locToUse.lat, lon: locToUse.lon, faceVerified: true }),
             });
 

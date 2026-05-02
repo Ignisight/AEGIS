@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { getServerUrl, setServerUrl, pingServer, saveUser, updateProfile } from '../api';
-import { APP_SECRET_HEADER } from '../config';
+import { getSecureHeaders } from '../config';
 
 interface SettingsScreenProps {
     navigation: any;
@@ -113,7 +113,7 @@ export default function SettingsScreen({ navigation, route }: SettingsScreenProp
         try {
             const res = await fetch(`${getServerUrl()}/api/change-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
                 body: JSON.stringify({
                     email: userEmail,
                     currentPassword,

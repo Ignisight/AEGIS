@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getResponses, getServerUrl } from '../api';
-import { REFRESH_INTERVAL_SEC, APP_SECRET_KEY, APP_SECRET_HEADER } from '../config';
+import { REFRESH_INTERVAL_SEC, APP_SECRET_KEY, getSecureHeaders } from '../config';
 
 interface ResponsesScreenProps {
     navigation: any;
@@ -68,7 +68,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
         else setRefreshing(true);
 
         try {
-            const res = await fetch(`${getServerUrl()}/api/sessions/${sessionId}/full-report`, { headers: APP_SECRET_HEADER });
+            const res = await fetch(`${getServerUrl()}/api/sessions/${sessionId}/full-report`, { headers: await getSecureHeaders() });
             const result = await res.json();
             if (result.success) {
                 setResponses(result.report);
@@ -116,7 +116,7 @@ export default function ResponsesScreen({ navigation, route }: ResponsesScreenPr
             const serverUrl = getServerUrl();
             const downloadUrl = `${serverUrl}/api/export?sessionId=${encodeURIComponent(sessionId)}`;
             const downloadResult = await FileSystem.downloadAsync(downloadUrl, filePath, {
-                headers: APP_SECRET_HEADER,
+                headers: await getSecureHeaders(),
             });
 
             if (action === 'export') {

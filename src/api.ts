@@ -1,4 +1,4 @@
-import { DEFAULT_SERVER_URL, APP_SECRET_HEADER } from './config';
+import { DEFAULT_SERVER_URL, getSecureHeaders } from './config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let SERVER_URL = DEFAULT_SERVER_URL;
@@ -16,7 +16,7 @@ export const register = async (name: string, email: string, password: string, co
     try {
         const response = await fetch(`${SERVER_URL}/api/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ name, email, password, college, department, allowedDomain }),
         });
         return await response.json();
@@ -31,7 +31,7 @@ export const login = async (email: string, password: string) => {
     try {
         const response = await fetch(`${SERVER_URL}/api/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ email, password }),
         });
         return await response.json();
@@ -44,7 +44,7 @@ export const login = async (email: string, password: string) => {
 export async function forgotPassword(email: string) {
     const res = await fetch(`${SERVER_URL}/api/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
         body: JSON.stringify({ email }),
     });
     return await res.json();
@@ -53,7 +53,7 @@ export async function forgotPassword(email: string) {
 export async function resetPassword(email: string, otp: string, newPassword: string) {
     const res = await fetch(`${SERVER_URL}/api/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
         body: JSON.stringify({ email, otp, newPassword }),
     });
     return await res.json();
@@ -64,7 +64,7 @@ export const changePassword = async (email: string, currentPassword: string, new
     try {
         const response = await fetch(`${SERVER_URL}/api/change-password`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ email, currentPassword, newPassword }),
         });
         return await response.json();
@@ -78,7 +78,7 @@ export const updateProfile = async (email: string, name: string, college: string
     try {
         const response = await fetch(`${SERVER_URL}/api/update-profile`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ email, name, college, department, allowedDomain }),
         });
         return await response.json();
@@ -104,7 +104,7 @@ export async function startSession(
 ) {
     const res = await fetch(`${SERVER_URL}/api/start-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
         body: JSON.stringify({ 
             sessionName, lat, lon, teacherEmail,
             durationMins: durationMins || 60,
@@ -121,7 +121,7 @@ export async function getTeacherCourses(teacherEmail: string) {
     try {
         const res = await fetch(
             `${SERVER_URL}/api/teacher/my-courses?teacherEmail=${encodeURIComponent(teacherEmail)}`,
-            { headers: APP_SECRET_HEADER }
+            { headers: await getSecureHeaders() }
         );
         return await res.json();
     } catch {
@@ -134,7 +134,7 @@ export async function getStudentCourses(email: string) {
     try {
         const res = await fetch(
             `${SERVER_URL}/api/student/courses?email=${encodeURIComponent(email)}`,
-            { headers: APP_SECRET_HEADER }
+            { headers: await getSecureHeaders() }
         );
         return await res.json();
     } catch {
@@ -147,7 +147,7 @@ export async function registerFace(email: string, deviceId: string, image: strin
     try {
         const res = await fetch(`${SERVER_URL}/api/student/register-face`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ email, deviceId, image }),
         });
         return await res.json();
@@ -161,7 +161,7 @@ export async function getFaceConfig(email: string) {
     try {
         const res = await fetch(
             `${SERVER_URL}/api/student/face-config?email=${encodeURIComponent(email)}`,
-            { headers: APP_SECRET_HEADER }
+            { headers: await getSecureHeaders() }
         );
         return await res.json();
     } catch {
@@ -174,7 +174,7 @@ export async function syncFaceDescriptor(email: string, descriptor: number[]) {
     try {
         const res = await fetch(`${SERVER_URL}/api/student/sync-face-descriptor`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
             body: JSON.stringify({ email, descriptor }),
         });
         return await res.json();
@@ -189,7 +189,7 @@ export async function stopSession(sessionId?: number) {
 
     const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
     });
     return await res.json();
 }
@@ -199,7 +199,7 @@ export async function getResponses(sessionId?: number) {
     if (sessionId) {
         url += `?sessionId=${encodeURIComponent(sessionId)}`;
     }
-    const res = await fetch(url, { headers: APP_SECRET_HEADER });
+    const res = await fetch(url, { headers: await getSecureHeaders() });
     return await res.json();
 }
 
@@ -208,7 +208,7 @@ export async function pingServer(url: string): Promise<boolean> {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
         const res = await fetch(`${url.replace(/\/+$/, '')}/api/status`, {
-            headers: APP_SECRET_HEADER,
+            headers: await getSecureHeaders(),
             signal: controller.signal,
         });
         clearTimeout(timeout);

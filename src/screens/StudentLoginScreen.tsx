@@ -5,7 +5,7 @@ import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { DEFAULT_SERVER_URL, APP_SECRET_HEADER, FACE_DESCRIPTOR_KEY } from '../config';
+import { DEFAULT_SERVER_URL, getSecureHeaders, FACE_DESCRIPTOR_KEY } from '../config';
 import { getFaceConfig } from '../api';
 
 export default function StudentLoginScreen({ navigation }: any) {
@@ -72,7 +72,7 @@ export default function StudentLoginScreen({ navigation }: any) {
 
             const response = await fetch(`${DEFAULT_SERVER_URL}/api/student/google-login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
                 body: JSON.stringify({ idToken, deviceId })
             });
 
