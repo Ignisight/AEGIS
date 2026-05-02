@@ -280,16 +280,32 @@ export default function StudentScannerScreen({ navigation }: any) {
         if (!studentInfo) return;
         try {
             setMessage('Analyzing identity...');
-            const verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
-                body: JSON.stringify({ 
-                    email: studentInfo.email, 
-                    deviceId: studentInfo.deviceId, 
-                    image: images,
-                    livenessVerified: true 
-                }),
-            });
+            
+            // Graceful Degradation: Exponential Backoff Retry
+            let verifyRes;
+            let retries = 2;
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    verifyRes = await fetch(`${DEFAULT_SERVER_URL}/api/student/verify-face`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                        body: JSON.stringify({ 
+                            email: studentInfo.email, 
+                            deviceId: studentInfo.deviceId, 
+                            image: images,
+                            livenessVerified: true 
+                        }),
+                    });
+                    if (verifyRes.ok) break;
+                    if (i === retries) throw new Error('Server unavailable');
+                } catch (err) {
+                    if (i === retries) throw err;
+                    setMessage(`Network unstable. Retrying (${i+1}/${retries})...`);
+                    await new Promise(res => setTimeout(res, 1500 * Math.pow(2, i)));
+                }
+            }
+
+            if (!verifyRes) throw new Error('Failed to connect to server');
             const verifyData = await verifyRes.json();
 
             if (!verifyData.success || !verifyData.verified) {
@@ -304,7 +320,10 @@ export default function StudentScannerScreen({ navigation }: any) {
             }
             
             await getLocationAndProceed();
-        } catch (err: any) { Alert.alert('Error', err.message); resetToFace(); }
+        } catch (err: any) { 
+            Alert.alert('Network Error', 'Connection lost while verifying face. Please try again.'); 
+            resetToFace(); 
+        }
     };
 
     const getLocationAndProceed = async () => {
