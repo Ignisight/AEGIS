@@ -48,7 +48,28 @@ function parseDurationToMs(input: string): number | null {
 }
 
 export default function HomeScreen({ navigation, route }: HomeScreenProps) {
-    const { userName, userEmail, userCollege, userDepartment, userAllowedDomain } = route.params || {};
+    const [userData, setUserData] = useState<any>(route.params || {});
+    const { userName, userEmail, userCollege, userDepartment, userAllowedDomain } = userData;
+
+    useEffect(() => {
+        const loadUser = async () => {
+            if (!userEmail) {
+                const storedUser = await getUser();
+                if (storedUser) {
+                    setUserData({
+                        userName: storedUser.name,
+                        userEmail: storedUser.email,
+                        userCollege: storedUser.college || '',
+                        userDepartment: storedUser.department || '',
+                        userAllowedDomain: storedUser.allowedDomain || '',
+                    });
+                } else {
+                    navigation.replace('Login');
+                }
+            }
+        };
+        loadUser();
+    }, [userEmail]);
 
     // Course state
     const [courses, setCourses]             = useState<Course[]>([]);
@@ -63,6 +84,7 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
 
     // Session state
     const [loading, setLoading] = useState(false);
+
 
     // Drawer state
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -127,8 +149,12 @@ export default function HomeScreen({ navigation, route }: HomeScreenProps) {
     };
 
     const openHistory = () => {
+        if (!userEmail) {
+            Alert.alert('Loading', 'User data is still loading. Please try again in a moment.');
+            return;
+        }
         closeDrawer();
-        setTimeout(() => navigation.navigate('History'), 300);
+        setTimeout(() => navigation.navigate('History', { teacherEmail: userEmail }), 300);
     };
 
     const openSettings = () => {

@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getServerUrl } from '../api';
-import { getSecureHeaders, APP_SECRET_KEY } from '../config';
+import { APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
 
 interface HistoryScreenProps {
     navigation: any;
@@ -29,7 +29,7 @@ interface SessionItem {
     responseCount: number;
 }
 
-export default function HistoryScreen({ navigation }: HistoryScreenProps) {
+export default function HistoryScreen({ navigation, route }: any) {
     const [sessions, setSessions] = useState<SessionItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectMode, setSelectMode] = useState(false);
@@ -46,7 +46,16 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         setLoading(true);
         try {
             const serverUrl = getServerUrl();
-            const res = await fetch(`${serverUrl}/api/history`, { headers: await getSecureHeaders() });
+            const { teacherEmail } = route.params || {};
+            
+            let url = `${serverUrl}/api/history`;
+            if (teacherEmail) {
+                url += `?teacherEmail=${encodeURIComponent(teacherEmail)}`;
+            }
+            
+            console.log('[DEBUG] Fetching History URL:', url);
+            
+            const res = await fetch(url, { headers: APP_SECRET_HEADER });
             const data = await res.json();
             if (data.success) {
                 setSessions(data.sessions);
@@ -56,7 +65,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [route.params]);
 
     useEffect(() => { fetchHistory(); }, []);
 
@@ -85,7 +94,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         } else if (active) {
             endMs = now;
         } else {
-            endMs = new Date(start).getTime() + durationMs; 
+            endMs = new Date(start).getTime() + durationMs;
         }
 
         let ms = endMs - new Date(start).getTime();
@@ -115,7 +124,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { method: 'POST', headers: await getSecureHeaders() });
+                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { method: 'POST', headers: APP_SECRET_HEADER });
                             await fetchHistory();
                         } catch {
                             Alert.alert('Error', 'Failed to stop session.');
@@ -162,7 +171,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                             const serverUrl = getServerUrl();
                             await fetch(`${serverUrl}/api/sessions/delete-many`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
+                                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
                                 body: JSON.stringify({ ids: Array.from(selected) }),
                             });
                             exitSelectMode();
@@ -189,7 +198,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/clear-all`, { method: 'POST', headers: await getSecureHeaders() });
+                            await fetch(`${serverUrl}/api/sessions/clear-all`, { method: 'POST', headers: APP_SECRET_HEADER });
                             exitSelectMode();
                             await fetchHistory();
                         } catch (err) {
@@ -225,21 +234,21 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 // Determine ZIP filename based on subject selection
                 const targetSessions = sessions.filter(s => targetIds.includes(s.id));
                 const uniqueNames = [...new Set(targetSessions.map(s => s.name))];
-                
+
                 if (uniqueNames.length === 1) {
                     const safeSubject = uniqueNames[0].replace(/[^a-zA-Z0-9]/g, '_');
                     fileName = `attendance_${safeSubject}_sessions.zip`;
                 } else {
                     fileName = `attendance_sessions_${Date.now()}.zip`;
                 }
-                
+
                 mimeType = 'application/zip';
                 const ids = targetIds.join(',');
                 url = `${serverUrl}/api/export-multi?ids=${ids}`;
             } else {
                 const s = filteredSessions.find(item => item.id === targetIds[0]);
                 if (!s) return;
-                
+
                 const safeName = s.name.replace(/[^a-zA-Z0-9]/g, '_');
                 const d = new Date(s.createdAt);
                 const dd = String(d.getDate()).padStart(2, '0');
@@ -258,7 +267,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
             const downloadResult = await FileSystem.downloadAsync(url, filePath, {
-                headers: await getSecureHeaders(),
+                headers: APP_SECRET_HEADER,
             });
 
             if (action === 'export') {
@@ -411,7 +420,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                     <Text style={styles.backText}>{selectMode ? '✕ Cancel' : '← Back'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>
-                    {selectMode ? `${selected.size} Selected` : `History (${filteredSessions.length})`}
+                    {selectMode ? `${selected.size} Selected` : 'History'}
                 </Text>
                 {!selectMode ? (
                     <TouchableOpacity onPress={fetchHistory} style={styles.refreshBtn}>

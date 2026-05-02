@@ -14,10 +14,11 @@ export function getServerUrl() {
 // Register
 export const register = async (name: string, email: string, password: string, college: string, department: string, allowedDomain?: string) => {
     try {
+        const payload = JSON.stringify({ name, email, password, college, department, allowedDomain });
         const response = await fetch(`${SERVER_URL}/api/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ name, email, password, college, department, allowedDomain }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await response.json();
     } catch (error) {
@@ -29,10 +30,11 @@ export const register = async (name: string, email: string, password: string, co
 // Login
 export const login = async (email: string, password: string) => {
     try {
+        const payload = JSON.stringify({ email, password });
         const response = await fetch(`${SERVER_URL}/api/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ email, password }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await response.json();
     } catch (error) {
@@ -42,19 +44,21 @@ export const login = async (email: string, password: string) => {
 };
 
 export async function forgotPassword(email: string) {
+    const payload = JSON.stringify({ email });
     const res = await fetch(`${SERVER_URL}/api/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-        body: JSON.stringify({ email }),
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+        body: payload,
     });
     return await res.json();
 }
 
 export async function resetPassword(email: string, otp: string, newPassword: string) {
+    const payload = JSON.stringify({ email, otp, newPassword });
     const res = await fetch(`${SERVER_URL}/api/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-        body: JSON.stringify({ email, otp, newPassword }),
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+        body: payload,
     });
     return await res.json();
 }
@@ -62,10 +66,11 @@ export async function resetPassword(email: string, otp: string, newPassword: str
 // Change Password
 export const changePassword = async (email: string, currentPassword: string, newPassword: string) => {
     try {
+        const payload = JSON.stringify({ email, currentPassword, newPassword });
         const response = await fetch(`${SERVER_URL}/api/change-password`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ email, currentPassword, newPassword }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await response.json();
     } catch (error) {
@@ -76,10 +81,11 @@ export const changePassword = async (email: string, currentPassword: string, new
 // Update Profile
 export const updateProfile = async (email: string, name: string, college: string, department: string, allowedDomain: string) => {
     try {
+        const payload = JSON.stringify({ email, name, college, department, allowedDomain });
         const response = await fetch(`${SERVER_URL}/api/update-profile`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ email, name, college, department, allowedDomain }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await response.json();
     } catch (error) {
@@ -102,16 +108,17 @@ export async function startSession(
     courseId?: string,
     joinWindowMins?: number
 ) {
+    const payload = JSON.stringify({ 
+        sessionName, lat, lon, teacherEmail,
+        durationMins: durationMins || 60,
+        radiusMeters: radiusMeters || 80,
+        courseId,
+        joinWindowMins: joinWindowMins || 10
+    });
     const res = await fetch(`${SERVER_URL}/api/start-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-        body: JSON.stringify({ 
-            sessionName, lat, lon, teacherEmail,
-            durationMins: durationMins || 60,
-            radiusMeters: radiusMeters || 80,
-            courseId,
-            joinWindowMins: joinWindowMins || 10
-        }),
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+        body: payload,
     });
     return await res.json();
 }
@@ -145,10 +152,11 @@ export async function getStudentCourses(email: string) {
 // Register face with Anti-Spoofing
 export async function registerFace(email: string, deviceId: string, image: string) {
     try {
+        const payload = JSON.stringify({ email, deviceId, image });
         const res = await fetch(`${SERVER_URL}/api/student/register-face`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ email, deviceId, image }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await res.json();
     } catch {
@@ -172,10 +180,11 @@ export async function getFaceConfig(email: string) {
 // Sync face descriptor to server
 export async function syncFaceDescriptor(email: string, descriptor: number[]) {
     try {
+        const payload = JSON.stringify({ email, descriptor });
         const res = await fetch(`${SERVER_URL}/api/student/sync-face-descriptor`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
-            body: JSON.stringify({ email, descriptor }),
+            headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders(payload)) },
+            body: payload,
         });
         return await res.json();
     } catch {
@@ -189,7 +198,7 @@ export async function stopSession(sessionId?: number) {
 
     const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()) },
+        headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders('')) },
     });
     return await res.json();
 }
