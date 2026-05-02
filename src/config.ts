@@ -17,13 +17,15 @@ export const DEFAULT_SERVER_URL = 'https://aegis-server-02y5.onrender.com'; // â
 export const APP_SECRET_KEY = Constants.expoConfig?.extra?.APP_SECRET_KEY || '';
 import * as Crypto from 'expo-crypto';
 
-// Replay Protection: Generate a dynamic, expiring signature per request
-export const getSecureHeaders = async () => {
+// Replay Protection & Full Payload Signing
+export const getSecureHeaders = async (payloadData: string = '') => {
     const timestamp = Date.now().toString();
     const nonce = Math.random().toString(36).substring(2, 15);
+    
+    // Sign the exact data being sent so attackers can't modify location/identity
     const signature = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
-        timestamp + nonce + APP_SECRET_KEY
+        payloadData + timestamp + nonce + APP_SECRET_KEY
     );
     return {
         'x-app-secret': APP_SECRET_KEY, // Kept for backwards compatibility if needed

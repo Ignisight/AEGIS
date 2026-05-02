@@ -419,14 +419,14 @@ export default function StudentScannerScreen({ navigation }: any) {
         if (!studentInfo || !locToUse) return;
         try {
             setMessage('⏳ Submitting...');
-            const timestamp = Date.now().toString();
-            const payload   = studentInfo.email.toLowerCase().trim() + studentInfo.deviceId + sessionCode;
-            const signature = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payload + timestamp + APP_SECRET_KEY);
+            const bodyObj = { email: studentInfo.email, deviceId: studentInfo.deviceId, sessionCode, lat: locToUse.lat, lon: locToUse.lon, faceVerified: true };
+            const payloadStr = JSON.stringify(bodyObj);
+            const secureHeaders = await getSecureHeaders(payloadStr);
 
             const res = await fetch(`${DEFAULT_SERVER_URL}/api/student/submit`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(await getSecureHeaders()), 'x-signature': signature, 'x-timestamp': timestamp },
-                body: JSON.stringify({ email: studentInfo.email, deviceId: studentInfo.deviceId, sessionCode, lat: locToUse.lat, lon: locToUse.lon, faceVerified: true }),
+                headers: { 'Content-Type': 'application/json', ...secureHeaders },
+                body: payloadStr,
             });
 
             const data = await res.json();
