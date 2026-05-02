@@ -15,7 +15,7 @@ export const DEFAULT_SERVER_URL = 'https://aegis-server-02y5.onrender.com'; // â
 // Security: App Secret Key injected at build time via app.config.js
 // NEVER hardcode the actual key here â€” it comes from environment variables
 export const APP_SECRET_KEY = Constants.expoConfig?.extra?.APP_SECRET_KEY || '';
-import * as Crypto from 'expo-crypto';
+import CryptoJS from 'crypto-js';
 
 // Replay Protection & Full Payload Signing
 export const getSecureHeaders = async (payloadData: string = '') => {
@@ -23,10 +23,11 @@ export const getSecureHeaders = async (payloadData: string = '') => {
     const nonce = Math.random().toString(36).substring(2, 15);
     
     // Sign the exact data being sent so attackers can't modify location/identity
-    const signature = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        payloadData + timestamp + nonce + APP_SECRET_KEY
-    );
+    // Trimmed to ensure network whitespace doesn't break the signature
+    const signature = CryptoJS.HmacSHA256(
+        payloadData.trim() + timestamp + nonce, 
+        APP_SECRET_KEY
+    ).toString();
     return {
         'x-app-secret': APP_SECRET_KEY, // Kept for backwards compatibility if needed
         'x-timestamp': timestamp,
