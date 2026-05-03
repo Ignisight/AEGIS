@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getServerUrl } from '../api';
-import { APP_SECRET_HEADER, APP_SECRET_KEY } from '../config';
+import { getSecureHeaders, APP_SECRET_KEY } from '../config';
 
 interface HistoryScreenProps {
     navigation: any;
@@ -55,7 +55,8 @@ export default function HistoryScreen({ navigation, route }: any) {
             
             console.log('[DEBUG] Fetching History URL:', url);
             
-            const res = await fetch(url, { headers: APP_SECRET_HEADER });
+            const headers: any = await getSecureHeaders();
+            const res = await fetch(url, { headers });
             const data = await res.json();
             if (data.success) {
                 setSessions(data.sessions);
@@ -124,7 +125,10 @@ export default function HistoryScreen({ navigation, route }: any) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { method: 'POST', headers: APP_SECRET_HEADER });
+                            await fetch(`${serverUrl}/api/sessions/${item.id}/stop`, { 
+                                method: 'POST', 
+                                headers: await getSecureHeaders() 
+                            });
                             await fetchHistory();
                         } catch {
                             Alert.alert('Error', 'Failed to stop session.');
@@ -171,7 +175,10 @@ export default function HistoryScreen({ navigation, route }: any) {
                             const serverUrl = getServerUrl();
                             await fetch(`${serverUrl}/api/sessions/delete-many`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', ...APP_SECRET_HEADER },
+                                headers: { 
+                                    'Content-Type': 'application/json', 
+                                    ...(await getSecureHeaders(JSON.stringify({ sessionIds: Array.from(selected) })))
+                                },
                                 body: JSON.stringify({ ids: Array.from(selected) }),
                             });
                             exitSelectMode();
@@ -198,7 +205,10 @@ export default function HistoryScreen({ navigation, route }: any) {
                         setActionLoading(true);
                         try {
                             const serverUrl = getServerUrl();
-                            await fetch(`${serverUrl}/api/sessions/clear-all`, { method: 'POST', headers: APP_SECRET_HEADER });
+                            await fetch(`${serverUrl}/api/sessions/clear-all`, { 
+                                method: 'POST', 
+                                headers: await getSecureHeaders() 
+                            });
                             exitSelectMode();
                             await fetchHistory();
                         } catch (err) {
@@ -267,7 +277,7 @@ export default function HistoryScreen({ navigation, route }: any) {
 
             const filePath = `${FileSystem.documentDirectory}${fileName}`;
             const downloadResult = await FileSystem.downloadAsync(url, filePath, {
-                headers: APP_SECRET_HEADER,
+                headers: await getSecureHeaders(),
             });
 
             if (action === 'export') {
