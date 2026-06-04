@@ -50,4 +50,4 @@ A.E.G.I.S is a high-security, anti-proxy attendance system designed for NIT Jams
 This app implements strict anti-proxy measures. Any attempt to use emulators, screen recordings, or mock locations is automatically logged as a security violation to the administrator.
 
 ---
-**Developed for NIT Jamshedpur** 🏛️
+**Developed for Attendance** 🏛️
